@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Doom Compass — Tactical HUD</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0d0a;
+    --panel: rgba(22, 19, 16, 0.88);
+    --gold: #d4a85c;
+    --orange: #e8722a;
+    --amber: #e8b840;
+    --red: #e85a30;
+    --ice: #7ab8d4;
+    --green: #6cc44a;
+    --text: #e8dcc8;
+    --dim: #7a6844;
+    --orange-glow: rgba(232, 114, 42, 0.4);
+    --gold-glow: rgba(212, 168, 92, 0.35);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* faint tactical grid over everything */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      repeating-linear-gradient(0deg, rgba(212,168,92,0.025) 0 1px, transparent 1px 44px),
+      repeating-linear-gradient(90deg, rgba(212,168,92,0.025) 0 1px, transparent 1px 44px),
+      radial-gradient(ellipse at 50% 0%, rgba(212,168,92,0.05) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 100%, rgba(232,114,42,0.06) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* sweeping scan beam */
+  body::after {
+    content: '';
+    position: fixed; left: 0; right: 0;
+    height: 90px;
+    background: linear-gradient(to bottom, transparent, rgba(122,184,212,0.04), transparent);
+    animation: beam 8s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @keyframes beam { from { top: -110px; } to { top: 110vh; } }
+
+  /* ── FIXED HUD CHROME ── */
+  .hud-corner {
+    position: fixed;
+    width: 38px; height: 38px;
+    border-color: var(--gold);
+    border-style: solid;
+    border-width: 0;
+    opacity: 0.7;
+    z-index: 40;
+    pointer-events: none;
+  }
+  .hud-corner.tl { top: 52px; left: 12px; border-top-width: 2px; border-left-width: 2px; }
+  .hud-corner.tr { top: 52px; right: 12px; border-top-width: 2px; border-right-width: 2px; }
+  .hud-corner.bl { bottom: 44px; left: 12px; border-bottom-width: 2px; border-left-width: 2px; }
+  .hud-corner.br { bottom: 44px; right: 12px; border-bottom-width: 2px; border-right-width: 2px; }
+
+  .statusbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.55rem 1.1rem;
+    background: rgba(15, 13, 10, 0.92);
+    border-bottom: 1px solid rgba(212,168,92,0.3);
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    z-index: 50;
+    backdrop-filter: blur(4px);
+  }
+  .statusbar .sys { color: var(--gold); }
+  .statusbar .blink {
+    color: var(--orange);
+    animation: blink 1.4s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.25; } }
+  .statusbar .right { display: flex; gap: 1.4rem; }
+  .statusbar .ok { color: var(--green); }
+  @media (max-width: 700px) {
+    .statusbar .hide-m { display: none; }
+  }
+
+  /* bottom ticker */
+  .ticker {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(15, 13, 10, 0.92);
+    border-top: 1px solid rgba(212,168,92,0.3);
+    overflow: hidden;
+    white-space: nowrap;
+    z-index: 50;
+    backdrop-filter: blur(4px);
+  }
+  .ticker-inner {
+    display: inline-block;
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 0.45rem 0;
+    animation: tick 38s linear infinite;
+  }
+  .ticker-inner b { color: var(--gold); font-weight: 400; }
+  .ticker-inner .warn { color: var(--orange); }
+  @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 4.4rem 1.5rem 4.5rem;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── GLITCH ── */
+  .glitch { position: relative; display: inline-block; }
+  .glitch::before, .glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+  .glitch::before { color: var(--ice); z-index: -1; animation: glitchA 3.6s infinite steps(1); }
+  .glitch::after { color: var(--red); z-index: -2; animation: glitchB 2.8s infinite steps(1); }
+  @keyframes glitchA {
+    0%, 91%, 100% { transform: none; clip-path: none; opacity: 0; }
+    92% { transform: translate(-3px, 1px); clip-path: inset(12% 0 60% 0); opacity: 1; }
+    94% { transform: translate(3px, -1px); clip-path: inset(55% 0 18% 0); opacity: 1; }
+    97% { transform: none; opacity: 0; }
+  }
+  @keyframes glitchB {
+    0%, 88%, 100% { transform: none; opacity: 0; }
+    89% { transform: translate(4px, -2px); clip-path: inset(38% 0 38% 0); opacity: 1; }
+    93% { transform: translate(-4px, 2px); clip-path: inset(5% 0 80% 0); opacity: 1; }
+    96% { transform: none; opacity: 0; }
+  }
+
+  /* ── HUD MODULES ── */
+  .module {
+    background: var(--panel);
+    border: 1px solid rgba(212,168,92,0.3);
+    position: relative;
+    backdrop-filter: blur(3px);
+  }
+  /* bracket corners on modules */
+  .module::before, .module::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    border-color: var(--orange);
+    border-style: solid;
+    border-width: 0;
+    opacity: 0.9;
+  }
+  .module::before { top: -1px; left: -1px; border-top-width: 2px; border-left-width: 2px; }
+  .module::after { bottom: -1px; right: -1px; border-bottom-width: 2px; border-right-width: 2px; }
+
+  .module-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid rgba(212,168,92,0.2);
+    font-size: 0.6rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .module-bar .stat { color: var(--dim); }
+  .module-bar .stat .live { color: var(--orange); animation: blink 1.4s step-end infinite; }
+
+  /* ── LANDING ── */
+  .landing { animation: fadeUp 0.6s ease-out; }
+  .landing.hidden { display: none; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  .hero { text-align: center; padding: 2.2rem 0 1.6rem; }
+
+  .hero-kicker {
+    font-size: 0.62rem;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 1.3rem;
+  }
+  .hero-kicker .tag {
+    color: var(--orange);
+    border: 1px solid rgba(232,114,42,0.5);
+    padding: 0.15rem 0.55rem;
+    margin-right: 0.6rem;
+  }
+
+  .hero-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.04;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+  .hero-title .doom {
+    color: var(--orange);
+    text-shadow: 0 0 22px var(--orange-glow), 0 0 70px rgba(232,114,42,0.2);
+  }
+
+  .hero-sub {
+    font-size: 0.66rem;
+    letter-spacing: 0.45em;
+    text-transform: uppercase;
+    color: var(--ice);
+    opacity: 0.75;
+    margin-bottom: 1.8rem;
+  }
+
+  .hero-desc {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.08rem;
+    font-weight: 300;
+    color: var(--dim);
+    max-width: 470px;
+    margin: 0 auto 2rem;
+    line-height: 1.7;
+  }
+  .hero-desc b { color: var(--text); font-weight: 600; }
+
+  /* readout strip */
+  .readout-strip {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    border: 1px solid rgba(212,168,92,0.3);
+    max-width: 460px;
+    margin: 0 auto 2.2rem;
+    background: var(--panel);
+  }
+  .readout {
+    flex: 1;
+    padding: 0.8rem 0.5rem 0.7rem;
+    border-right: 1px solid rgba(212,168,92,0.2);
+    text-align: center;
+  }
+  .readout:last-child { border-right: none; }
+  .readout .val {
+    font-size: 1.7rem;
+    color: var(--gold);
+    text-shadow: 0 0 14px var(--gold-glow);
+    line-height: 1.1;
+  }
+  .readout .key {
+    font-size: 0.54rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .landing-preview { width: 100%; max-width: 420px; margin: 0 auto 2.2rem; }
+  .preview-canvas { width: 100%; display: block; cursor: crosshair; }
+
+  /* ── BUTTONS ── */
+  button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; font-family: 'Share Tech Mono', monospace; }
+
+  .start-btn {
+    font-size: 0.95rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: linear-gradient(180deg, #f0b878, var(--orange));
+    border: none;
+    padding: 1.05rem 3.2rem;
+    cursor: pointer;
+    clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+    box-shadow: 0 0 28px var(--orange-glow), 0 0 80px rgba(232,114,42,0.15);
+    transition: all 0.2s;
+    font-weight: 400;
+  }
+  .start-btn:hover {
+    box-shadow: 0 0 42px var(--orange-glow), 0 0 110px rgba(232,114,42,0.3);
+    transform: translateY(-2px);
+  }
+
+  .ghost-btn {
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid rgba(212,168,92,0.45);
+    color: var(--gold);
+    padding: 0.95rem 1.5rem;
+    cursor: pointer;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: all 0.2s;
+  }
+  .ghost-btn:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,92,0.07);
+    box-shadow: 0 0 22px rgba(212,168,92,0.22);
+  }
+  .ghost-btn.orange { border-color: rgba(232,114,42,0.5); color: var(--orange); }
+  .ghost-btn.orange:hover {
+    border-color: var(--orange);
+    background: rgba(232,114,42,0.07);
+    box-shadow: 0 0 22px var(--orange-glow);
+  }
+
+  /* ── QUIZ ── */
+  #quiz { display: none; }
+
+  .target-readout {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    margin-bottom: 1.4rem;
+  }
+  .target-num {
+    font-size: 2.6rem;
+    line-height: 1;
+    color: var(--orange);
+    text-shadow: 0 0 18px var(--orange-glow);
+    border: 1px solid rgba(232,114,42,0.4);
+    padding: 0.45rem 0.9rem 0.35rem;
+    background: var(--panel);
+  }
+  .target-num small { font-size: 0.85rem; color: var(--dim); }
+  .target-meta { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0.4rem; }
+  .seg-track { display: flex; gap: 3px; height: 9px; }
+  .seg {
+    flex: 1;
+    background: rgba(122,104,68,0.25);
+    clip-path: polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%);
+  }
+  .seg.on {
+    background: linear-gradient(180deg, var(--amber), var(--orange));
+    box-shadow: 0 0 8px var(--orange-glow);
+  }
+  .target-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .target-label b { color: var(--gold); font-weight: 400; }
+
+  .question-module { margin-bottom: 1.5rem; animation: fadeUp 0.3s ease-out; }
+  .question-body { padding: 1.5rem 1.4rem 1.6rem; }
+
+  .question-text {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+    line-height: 1.5;
+    margin-bottom: 1.8rem;
+    color: var(--text);
+  }
+
+  /* likert — thermal gauge: cold ice → hot ember */
+  .likert-options {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.45rem;
+  }
+  .likert-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 1rem 0.25rem 0.85rem;
+    background: transparent;
+    border: 1px solid rgba(122,104,68,0.4);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    --c: var(--gold);
+  }
+  .likert-btn:nth-child(1) { --c: var(--ice); }
+  .likert-btn:nth-child(2) { --c: #9fc4cf; }
+  .likert-btn:nth-child(3) { --c: var(--gold); }
+  .likert-btn:nth-child(4) { --c: var(--amber); }
+  .likert-btn:nth-child(5) { --c: var(--orange); }
+  .likert-btn:hover {
+    border-color: var(--c);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--c) 30%, transparent), inset 0 0 16px color-mix(in srgb, var(--c) 8%, transparent);
+  }
+  .likert-tick {
+    width: 18px; height: 18px;
+    border: 1px solid rgba(122,104,68,0.7);
+    transform: rotate(45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .likert-tick i {
+    width: 8px; height: 8px;
+    background: rgba(122,104,68,0.5);
+    transition: all 0.15s;
+  }
+  .likert-btn:hover .likert-tick { border-color: var(--c); }
+  .likert-btn:hover .likert-tick i { background: var(--c); box-shadow: 0 0 10px var(--c); }
+  .likert-label {
+    font-size: 0.54rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--dim);
+  }
+  .likert-btn:hover .likert-label { color: var(--text); }
+
+  /* ── RESULT ── */
+  .result-screen { display: none; animation: fadeUp 0.5s ease-out; }
+  .result-screen.visible { display: block; }
+
+  .lock-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 1.3rem;
+  }
+  .lock-banner::before, .lock-banner::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(232,114,42,0.5), transparent);
+  }
+
+  .compass-module { margin-bottom: 1.5rem; }
+  .compass-inner { padding: 1.2rem 1.2rem 1.4rem; }
+  .compass-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .compass-title {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ice);
+    opacity: 0.7;
+  }
+
+  .toggle-wrap { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; }
+  .toggle-wrap span {
+    font-size: 0.56rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    transition: color 0.2s;
+  }
+  .toggle-track {
+    width: 36px; height: 16px;
+    border: 1px solid rgba(122,104,68,0.6);
+    position: relative;
+    transition: all 0.25s;
+    clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  }
+  .toggle-track.on {
+    border-color: var(--orange);
+    background: rgba(232,114,42,0.15);
+    box-shadow: 0 0 10px var(--orange-glow);
+  }
+  .toggle-thumb {
+    width: 10px; height: 10px;
+    background: var(--dim);
+    position: absolute;
+    top: 2px; left: 3px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .toggle-track.on .toggle-thumb {
+    transform: translateX(19px);
+    background: var(--orange);
+    box-shadow: 0 0 8px var(--orange-glow);
+  }
+
+  .compass-container { position: relative; width: 100%; }
+  .compass-canvas { width: 100%; display: block; cursor: crosshair; }
+
+  .compass-tooltip {
+    position: absolute;
+    background: rgba(18, 14, 10, 0.97);
+    border: 1px solid rgba(212,168,92,0.5);
+    padding: 0.6rem 0.8rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    z-index: 10;
+    max-width: 230px;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    box-shadow: 0 0 24px rgba(212,168,92,0.18);
+  }
+  .compass-tooltip.visible { opacity: 1; }
+  .tooltip-name { font-size: 0.64rem; letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
+  .tooltip-role { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.8rem; color: var(--dim); line-height: 1.3; }
+  .tooltip-quote { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.85rem; font-style: italic; color: var(--orange); line-height: 1.35; margin-top: 0.2rem; }
+
+  .legend {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: 0.3rem 1rem;
+    padding: 1rem 1.2rem;
+    border-top: 1px solid rgba(212,168,92,0.2);
+  }
+  .legend.visible { display: grid; }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+  .legend-dot { width: 7px; height: 7px; flex-shrink: 0; transform: rotate(45deg); }
+  .legend-name { font-size: 0.6rem; color: var(--dim); letter-spacing: 0.06em; }
+
+  .result-module { margin-bottom: 1.5rem; }
+  .result-body-inner { padding: 1.6rem 1.5rem 1.7rem; }
+
+  .archetype {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 2.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin: 0.3rem 0 0.25rem;
+  }
+  .archetype-sub {
+    font-size: 0.58rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 1.25rem;
+  }
+  .result-text {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.08rem;
+    font-weight: 300;
+    line-height: 1.7;
+    color: var(--dim);
+  }
+
+  .coord-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-top: 1.4rem;
+  }
+  .coord-box {
+    border: 1px solid rgba(212,168,92,0.25);
+    padding: 0.7rem 0.9rem;
+  }
+  .coord-box .k { font-size: 0.54rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); }
+  .coord-box .v { font-size: 1.5rem; color: var(--gold); text-shadow: 0 0 12px var(--gold-glow); }
+  .coord-box .n { font-size: 0.56rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+
+  .nearest { margin-top: 1.3rem; padding-top: 1.1rem; border-top: 1px solid rgba(212,168,92,0.2); }
+  .nearest-label { font-size: 0.55rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.4rem; }
+  .nearest-name { font-family: 'IBM Plex Sans', sans-serif; font-size: 1.25rem; font-weight: 600; }
+  .nearest-quote { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.98rem; font-style: italic; color: var(--dim); margin-top: 0.2rem; }
+
+  .result-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .result-actions button { flex: 1; min-width: 215px; }
+
+  /* ── SHARE CARD ── */
+  #shareCard {
+    position: fixed; left: -9999px; top: 0;
+    width: 640px;
+    background: #0f0d0a;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    padding: 40px 44px;
+    border: 1px solid rgba(212,168,92,0.5);
+  }
+  #shareCard .sc-tag { font-size: 0.6rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold); }
+  #shareCard .sc-title { font-family: 'IBM Plex Sans', sans-serif; font-size: 1.9rem; font-weight: 700; text-transform: uppercase; margin: 8px 0 4px; }
+  #shareCard .sc-title .doom { color: var(--orange); }
+  #shareCard .sc-arch { font-family: 'IBM Plex Sans', sans-serif; font-size: 2.3rem; font-weight: 700; text-transform: uppercase; margin: 20px 0 4px; }
+  #shareCard .sc-sub { font-size: 0.6rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); margin-bottom: 14px; }
+  #shareCard .sc-coords { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-top: 12px; }
+  #shareCard .sc-coords b { color: var(--gold); }
+  #shareCard .sc-foot { font-size: 0.58rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); margin-top: 24px; border-top: 1px solid rgba(212,168,92,0.25); padding-top: 14px; }
+  #shareCard canvas { width: 100%; display: block; margin-top: 12px; }
+
+  /* ── AD ── */
+  .ad-unit { margin: 2.4rem 0 0; text-align: center; }
+  .ad-label { font-size: 0.5rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--dim); opacity: 0.5; margin-bottom: 0.4rem; }
+  .ad-slot { border: 1px dashed rgba(212,168,92,0.25); min-height: 90px; display: flex; align-items: center; justify-content: center; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 700px) {
+    .container { padding: 3.8rem 0.9rem 4rem; }
+    .hud-corner { display: none; }
+    .hero-title { font-size: 2.1rem; }
+    .hero-desc { font-size: 0.98rem; }
+    .landing-preview { max-width: 310px; }
+    .readout .val { font-size: 1.3rem; }
+    .question-text { font-size: 1.15rem; }
+    .question-body { padding: 1.15rem 1rem 1.3rem; }
+    .likert-options { gap: 0.3rem; }
+    .likert-btn { padding: 0.7rem 0.15rem 0.6rem; }
+    .likert-label { font-size: 0.44rem; letter-spacing: 0.04em; }
+    .archetype { font-size: 1.5rem; }
+    .result-text { font-size: 0.98rem; }
+    .legend { grid-template-columns: 1fr 1fr; }
+    .start-btn { width: 100%; }
+    .coord-grid { grid-template-columns: 1fr; }
+    .target-num { font-size: 1.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="statusbar">
+  <div><span class="sys">DOOM_HUD v3.0</span> &nbsp;<span class="blink">● REC</span></div>
+  <div class="right">
+    <span class="hide-m">UPLINK: <span class="ok">STABLE</span></span>
+    <span class="hide-m">MODEL DRIFT: <span class="ok">NOMINAL</span></span>
+    <span>THREAT: <span style="color:var(--orange)">UNCALIBRATED</span></span>
+  </div>
+</div>
+
+<div class="hud-corner tl"></div>
+<div class="hud-corner tr"></div>
+<div class="hud-corner bl"></div>
+<div class="hud-corner br"></div>
+
+<div class="container">
+
+  <!-- ── LANDING ── -->
+  <div class="landing" id="landing">
+    <div class="hero">
+      <div class="hero-kicker"><span class="tag">CLASSIFIED</span>THREAT ASSESSMENT INTERFACE</div>
+
+      <h1 class="hero-title">THE AI <span class="glitch doom" data-text="DOOM">DOOM</span><br>COMPASS</h1>
+      <div class="hero-sub">EXISTENTIAL RISK DIAGNOSTIC</div>
+
+      <p class="hero-desc">Where do you really stand on AI risk? Rate <b>30 statements</b> and the HUD will lock your coordinates on the doom compass — then overlay the famous thinkers who share your outlook.</p>
+
+      <div class="readout-strip">
+        <div class="readout"><div class="val">30</div><div class="key">Statements</div></div>
+        <div class="readout"><div class="val">04</div><div class="key">Archetypes</div></div>
+        <div class="readout"><div class="val">18</div><div class="key">Targets</div></div>
+        <div class="readout"><div class="val">~3</div><div class="key">Minutes</div></div>
+      </div>
+
+      <div class="landing-preview">
+        <canvas id="previewCanvas" class="preview-canvas"></canvas>
+      </div>
+
+      <button class="start-btn" onclick="startQuiz()">▸ Engage</button>
+    </div>
+
+    <div class="ad-unit">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot" style="display:flex"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="1234567890" data-ad-format="horizontal" data-adtest="on"></ins>
+    </div>
+  </div>
+
+  <!-- ── QUIZ ── -->
+  <div id="quiz">
+    <div class="target-readout">
+      <div class="target-num"><span id="qNum">01</span><small>/30</small></div>
+      <div class="target-meta">
+        <div class="seg-track" id="segTrack"></div>
+        <div class="target-label">EVALUATING STATEMENT <b id="pctLabel">0%</b> COMPLETE</div>
+      </div>
+    </div>
+    <div id="questionContainer"></div>
+  </div>
+
+  <!-- ── RESULT ── -->
+  <div class="result-screen" id="result">
+    <div class="lock-banner">⊕ POSITION LOCKED — TARGET ACQUIRED</div>
+
+    <div class="module compass-module">
+      <div class="module-bar">
+        <span>TACTICAL_COMPASS</span>
+        <span class="stat"><span class="live">●</span> TRACKING</span>
+      </div>
+      <div class="compass-inner">
+        <div class="compass-head">
+          <div class="compass-title">Your Coordinates</div>
+          <div class="toggle-wrap" onclick="toggleFigures()">
+            <span>Overlay Famous Figures</span>
+            <div class="toggle-track" id="toggleTrack"><div class="toggle-thumb"></div></div>
+          </div>
+        </div>
+        <div class="compass-container" id="compassArea">
+          <canvas class="compass-canvas" id="compassCanvas"></canvas>
+          <div class="compass-tooltip" id="tooltip">
+            <div class="tooltip-name" id="tooltipName"></div>
+            <div class="tooltip-role" id="tooltipRole"></div>
+            <div class="tooltip-quote" id="tooltipQuote"></div>
+          </div>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="module result-module">
+      <div class="module-bar">
+        <span>ANALYSIS_OUTPUT</span>
+        <span class="stat">CONFIDENCE: HIGH</span>
+      </div>
+      <div class="result-body-inner" id="resultDescription"></div>
+    </div>
+
+    <div class="result-actions">
+      <button class="ghost-btn orange" onclick="exportCard()">↓ Export Intel Card</button>
+      <button class="ghost-btn" onclick="restart()">↺ Recalibrate</button>
+    </div>
+
+    <div class="ad-unit">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot" style="display:flex"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="2345678901" data-ad-format="horizontal" data-adtest="on"></ins>
+    </div>
+  </div>
+</div>
+
+<div class="ticker"><div class="ticker-inner">
+  <b>DOOM_HUD</b> · THREAT LEVEL UNCALIBRATED · <span class="warn">ALIGNMENT CONFIDENCE BELOW THRESHOLD</span> · 18 TARGETS PLOTTED · COGNITIVE BIAS MATRIX LOADED · COMPUTE DOUBLING ON SCHEDULE · <b>DOOM_HUD</b> · THREAT LEVEL UNCALIBRATED · <span class="warn">ALIGNMENT CONFIDENCE BELOW THRESHOLD</span> · 18 TARGETS PLOTTED · COGNITIVE BIAS MATRIX LOADED · COMPUTE DOUBLING ON SCHEDULE ·&nbsp;
+</div></div>
+
+<!-- offscreen share card -->
+<div id="shareCard">
+  <div class="sc-tag">DOOM_HUD v3.0 // POSITION LOCK</div>
+  <div class="sc-title">THE AI <span class="doom">DOOM</span> COMPASS</div>
+  <canvas id="shareCanvas"></canvas>
+  <div class="sc-arch" id="scArch"></div>
+  <div class="sc-sub" id="scSub"></div>
+  <div class="sc-coords" id="scCoords"></div>
+  <div class="sc-foot">FIND YOUR OWN COORDINATES → AIDOOMCOMPASS</div>
+</div>
+
+<script src="compass-data.js"></script>
+<script>
+/* ── THEME ── */
+const C = {
+  bg: '#0f0d0a', gold: '#d4a85c', orange: '#e8722a', amber: '#e8b840',
+  red: '#e85a30', ice: '#7ab8d4', green: '#6cc44a', dim: '#7a6844'
+};
+function figureColor(f) {
+  if (f.x > 0 && f.y > 0) return C.red;
+  if (f.x <= 0 && f.y > 0) return C.amber;
+  if (f.x > 0 && f.y <= 0) return C.green;
+  return C.ice;
+}
+const QUAD_COLOR = { panic: C.red, cassandra: C.amber, accel: C.green, shrug: C.ice };
+
+let currentQ = 0, scores = { x: 0, y: 0 };
+let userNx = 0, userNy = 0, showFigures = false, canvasLayout = {};
+
+/* ── PROGRESS — segmented gauge ── */
+function buildSegments() {
+  document.getElementById('segTrack').innerHTML =
+    Array.from({ length: QUESTIONS.length }, () => '<div class="seg"></div>').join('');
+}
+function renderProgress() {
+  const pct = Math.round((currentQ / QUESTIONS.length) * 100);
+  document.getElementById('qNum').textContent = String(currentQ + 1).padStart(2, '0');
+  document.getElementById('pctLabel').textContent = pct + '%';
+  document.querySelectorAll('#segTrack .seg').forEach((s, i) =>
+    s.classList.toggle('on', i < currentQ));
+}
+
+/* ── QUESTION ── */
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+  document.getElementById('questionContainer').innerHTML = `
+    <div class="module question-module">
+      <div class="module-bar">
+        <span>STMT_${String(currentQ + 1).padStart(2, '0')} // RATE AGREEMENT</span>
+        <span class="stat"><span class="live">●</span> AWAITING INPUT</span>
+      </div>
+      <div class="question-body">
+        <div class="question-text">${q.text}</div>
+        <div class="likert-options">
+          ${SCALE.map(s => `
+            <button class="likert-btn" onclick="answer(${s.mult})">
+              <span class="likert-tick"><i></i></span>
+              <span class="likert-label">${s.label}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+  renderProgress();
+}
+
+function answer(mult) {
+  const q = QUESTIONS[currentQ];
+  scores.x += q.x * mult;
+  scores.y += q.y * mult;
+  currentQ++;
+  if (currentQ >= QUESTIONS.length) showResult();
+  else renderQuestion();
+}
+
+/* ── RESULT ── */
+function showResult() {
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('result').classList.add('visible');
+
+  let maxX = 0, maxY = 0;
+  QUESTIONS.forEach(q => { maxX += Math.abs(q.x); maxY += Math.abs(q.y); });
+  userNx = Math.max(-1, Math.min(1, scores.x / maxX));
+  userNy = Math.max(-1, Math.min(1, scores.y / maxY));
+
+  drawCompass();
+  writeDescription(userNx, userNy);
+  buildLegend();
+  setupTooltip();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function drawCompass() {
+  const canvas = document.getElementById('compassCanvas');
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width) || 560;
+  const isMobile = containerW < 500;
+  const padSide = isMobile ? 34 : 44;
+  const padTop = isMobile ? 48 : 56;
+  const padBottom = isMobile ? 56 : 60;
+  const gw = containerW - padSide * 2;
+  const canvasH = gw + padTop + padBottom;
+
+  canvas.width = containerW * 2;
+  canvas.height = canvasH * 2;
+  canvas.style.width = containerW + 'px';
+  canvas.style.height = canvasH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+  const gx = padSide, gy = padTop;
+  const gcx = gx + gw / 2, gcy = gy + gw / 2;
+  canvasLayout = { canvasW: containerW, canvasH, gx, gy, gw, gcx, gcy };
+
+  ctx.fillStyle = 'rgba(15, 11, 7, 0.65)';
+  ctx.fillRect(gx, gy, gw, gw);
+
+  // tactical grid
+  ctx.strokeStyle = 'rgba(122,104,68,0.2)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const xp = gx + (gw / 10) * i, yp = gy + (gw / 10) * i;
+    ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+  }
+
+  // range rings from center
+  ctx.strokeStyle = 'rgba(212,168,92,0.18)';
+  ctx.setLineDash([3, 4]);
+  [0.33, 0.66, 1].forEach(r => {
+    ctx.beginPath(); ctx.arc(gcx, gcy, (gw/2) * r, 0, Math.PI*2); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // quadrant washes
+  const qa = 0.06;
+  ctx.fillStyle = `rgba(232,184,64,${qa})`;  ctx.fillRect(gx, gy, gw/2, gw/2);
+  ctx.fillStyle = `rgba(232,90,48,${qa})`;   ctx.fillRect(gcx, gy, gw/2, gw/2);
+  ctx.fillStyle = `rgba(122,184,212,${qa})`; ctx.fillRect(gx, gcy, gw/2, gw/2);
+  ctx.fillStyle = `rgba(108,196,74,${qa})`;  ctx.fillRect(gcx, gcy, gw/2, gw/2);
+
+  // glow axes
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = C.orange;
+  ctx.strokeStyle = 'rgba(232,114,42,0.55)';
+  ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+  ctx.shadowColor = C.ice;
+  ctx.strokeStyle = 'rgba(122,184,212,0.55)';
+  ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // frame + corner brackets
+  ctx.strokeStyle = 'rgba(212,168,92,0.3)';
+  ctx.strokeRect(gx, gy, gw, gw);
+  ctx.strokeStyle = C.gold;
+  ctx.lineWidth = 2;
+  const bk = 14;
+  [[gx, gy, 1, 1], [gx + gw, gy, -1, 1], [gx, gy + gw, 1, -1], [gx + gw, gy + gw, -1, -1]].forEach(([cx, cy, sx, sy]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx + sx * bk, cy);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(cx, cy + sy * bk);
+    ctx.stroke();
+  });
+  ctx.lineWidth = 1;
+
+  const titleFont = (isMobile ? '700 9px' : '700 10px') + ' "IBM Plex Sans", sans-serif';
+  const subFont = (isMobile ? '6.5px' : '7.5px') + ' "Share Tech Mono", monospace';
+  const axisFont = (isMobile ? '7px' : '8px') + ' "Share Tech Mono", monospace';
+  const figureFont = (isMobile ? '6.5px' : '7px') + ' "Share Tech Mono", monospace';
+
+  ctx.textAlign = 'left'; ctx.font = titleFont;
+  ctx.fillStyle = C.amber;
+  ctx.fillText('THE CASSANDRA', gx, gy - (isMobile ? 26 : 30));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(232,184,64,0.55)';
+  ctx.fillText('SLOW COLLAPSE · TOTAL UPHEAVAL', gx, gy - (isMobile ? 14 : 17));
+
+  ctx.textAlign = 'right'; ctx.font = titleFont;
+  ctx.fillStyle = C.red;
+  ctx.fillText('THE PANIC ROOM', gx + gw, gy - (isMobile ? 26 : 30));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(232,90,48,0.6)';
+  ctx.fillText('COMING FAST & FOR EVERYTHING', gx + gw, gy - (isMobile ? 14 : 17));
+
+  ctx.textAlign = 'left'; ctx.font = titleFont;
+  ctx.fillStyle = C.ice;
+  ctx.fillText('THE SHRUG', gx, gy + gw + (isMobile ? 18 : 20));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(122,184,212,0.6)';
+  ctx.fillText('DISTANT FUTURE · MANAGEABLE BUMPS', gx, gy + gw + (isMobile ? 30 : 33));
+
+  ctx.textAlign = 'right'; ctx.font = titleFont;
+  ctx.fillStyle = C.green;
+  ctx.fillText('THE ACCELERATIONIST', gx + gw, gy + gw + (isMobile ? 18 : 20));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(108,196,74,0.6)';
+  ctx.fillText("COMING SOON · WE'LL ADAPT", gx + gw, gy + gw + (isMobile ? 30 : 33));
+
+  ctx.fillStyle = 'rgba(122,104,68,0.9)';
+  ctx.font = axisFont; ctx.textAlign = 'center';
+  ctx.fillText('◂ DISTANT', gx + gw * 0.15, gy + gw + (isMobile ? 46 : 52));
+  ctx.fillText('IMMINENT ▸', gx + gw * 0.85, gy + gw + (isMobile ? 46 : 52));
+  ctx.save(); ctx.translate(gx - (isMobile ? 16 : 20), gy + gw * 0.16); ctx.rotate(-Math.PI/2);
+  ctx.fillText('◂ UPHEAVAL', 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(gx - (isMobile ? 16 : 20), gy + gw * 0.85); ctx.rotate(-Math.PI/2);
+  ctx.fillText('BUMPS ▸', 0, 0); ctx.restore();
+
+  // figures — target diamonds with brackets
+  if (showFigures) {
+    const r = isMobile ? 3.2 : 4;
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const col = figureColor(f);
+      ctx.shadowColor = col; ctx.shadowBlur = 9;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(fx, fy - r); ctx.lineTo(fx + r, fy); ctx.lineTo(fx, fy + r); ctx.lineTo(fx - r, fy);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.font = figureFont; ctx.textAlign = 'center';
+      ctx.fillStyle = col;
+      const ly = Math.max(fy - (isMobile ? 7 : 9), gy + 9);
+      ctx.fillText(f.name.split(' ').pop().toUpperCase(), fx, ly);
+    });
+  }
+
+  // user — full targeting reticle
+  const px = gcx + userNx * (gw/2), py = gcy - userNy * (gw/2);
+
+  // crosshair to edges
+  ctx.strokeStyle = 'rgba(232,114,42,0.35)';
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px, gy + gw); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx, py); ctx.lineTo(gx + gw, py); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const glow = ctx.createRadialGradient(px, py, 0, px, py, 30);
+  glow.addColorStop(0, 'rgba(232,114,42,0.45)');
+  glow.addColorStop(1, 'rgba(232,114,42,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(px, py, 30, 0, Math.PI*2); ctx.fill();
+
+  // reticle: ring + 4 outer ticks + RGB split echo
+  const rr = isMobile ? 12 : 15;
+  ctx.lineWidth = 1.3;
+  ctx.strokeStyle = 'rgba(232,90,48,0.65)';
+  ctx.beginPath(); ctx.arc(px - 1.4, py, rr, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(122,184,212,0.65)';
+  ctx.beginPath(); ctx.arc(px + 1.4, py, rr, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = C.gold;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI*2); ctx.stroke();
+  // ticks
+  [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(px + dx * (rr + 2), py + dy * (rr + 2));
+    ctx.lineTo(px + dx * (rr + 8), py + dy * (rr + 8));
+    ctx.stroke();
+  });
+
+  ctx.fillStyle = C.orange;
+  ctx.shadowColor = C.orange; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.arc(px, py, isMobile ? 4 : 5, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = C.bg;
+  ctx.beginPath(); ctx.arc(px, py, 1.8, 0, Math.PI*2); ctx.fill();
+
+  ctx.font = (isMobile ? '8px' : '9px') + ' "Share Tech Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.gold;
+  ctx.fillText('[ YOU ]', px, py - rr - (isMobile ? 11 : 13));
+}
+
+function toggleFigures() {
+  showFigures = !showFigures;
+  document.getElementById('toggleTrack').classList.toggle('on', showFigures);
+  document.getElementById('legend').classList.toggle('visible', showFigures);
+  drawCompass();
+}
+
+function buildLegend() {
+  document.getElementById('legend').innerHTML = FIGURES.map(f => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${figureColor(f)};box-shadow:0 0 6px ${figureColor(f)};"></div>
+      <span class="legend-name">${f.name}</span>
+    </div>
+  `).join('');
+}
+
+function setupTooltip() {
+  const area = document.getElementById('compassArea');
+  const canvas = document.getElementById('compassCanvas');
+  const tooltip = document.getElementById('tooltip');
+
+  function hitTest(clientX, clientY, radius) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (clientX - rect.left) * (canvasLayout.canvasW / rect.width);
+    const my = (clientY - rect.top) * (canvasLayout.canvasH / rect.height);
+    const { gcx, gcy, gw } = canvasLayout;
+    let hit = null, minDist = radius;
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const d = Math.hypot(mx - fx, my - fy);
+      if (d < minDist) { minDist = d; hit = f; }
+    });
+    return hit;
+  }
+
+  function showTip(hit, clientX, clientY) {
+    document.getElementById('tooltipName').textContent = hit.name;
+    document.getElementById('tooltipRole').textContent = hit.role;
+    document.getElementById('tooltipQuote').textContent = `"${hit.quote}"`;
+    const cr = area.getBoundingClientRect();
+    let tx = clientX - cr.left + 16, ty = clientY - cr.top - 10;
+    if (tx + 240 > cr.width) tx = clientX - cr.left - 240;
+    if (ty + 100 > cr.height) ty = clientY - cr.top - 90;
+    if (ty < 0) ty = 5;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+    tooltip.classList.add('visible');
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    if (!showFigures) { tooltip.classList.remove('visible'); return; }
+    const hit = hitTest(e.clientX, e.clientY, 18);
+    if (hit) showTip(hit, e.clientX, e.clientY);
+    else tooltip.classList.remove('visible');
+  });
+  canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+  canvas.addEventListener('touchstart', e => {
+    if (!showFigures) return;
+    const t = e.touches[0];
+    const hit = hitTest(t.clientX, t.clientY, 30);
+    if (hit) { showTip(hit, t.clientX, t.clientY); setTimeout(() => tooltip.classList.remove('visible'), 2500); }
+    else tooltip.classList.remove('visible');
+  });
+}
+
+function writeDescription(nx, ny) {
+  const key = quadrantKey(nx, ny);
+  const arch = ARCHETYPES[key];
+  const color = QUAD_COLOR[key];
+  const nearest = nearestFigure(nx, ny);
+  const xPct = Math.round(nx * 100), yPct = Math.round(ny * 100);
+
+  document.getElementById('resultDescription').innerHTML = `
+    <div class="archetype glitch" data-text="${arch.name.toUpperCase()}" style="color:${color}; text-shadow: 0 0 22px ${color};">${arch.name.toUpperCase()}</div>
+    <div class="archetype-sub">${arch.sub} // your AI doom archetype</div>
+    <div class="result-text">${arch.body}${intensityNote(nx, ny)}</div>
+    <div class="coord-grid">
+      <div class="coord-box">
+        <div class="k">Timeline Axis</div>
+        <div class="v">${xPct > 0 ? '+' : ''}${xPct}%</div>
+        <div class="n">${nx > 0 ? 'IMMINENT' : 'DISTANT'}</div>
+      </div>
+      <div class="coord-box">
+        <div class="k">Disruption Axis</div>
+        <div class="v">${yPct > 0 ? '+' : ''}${yPct}%</div>
+        <div class="n">${ny > 0 ? 'HIGH UPHEAVAL' : 'LOW UPHEAVAL'}</div>
+      </div>
+    </div>
+    ${nearest ? `
+    <div class="nearest">
+      <div class="nearest-label">Nearest Tracked Target</div>
+      <div class="nearest-name" style="color:${figureColor(nearest)}">${nearest.name}</div>
+      <div class="nearest-quote">"${nearest.quote}"</div>
+    </div>` : ''}
+  `;
+}
+
+/* ── SHARE CARD ── */
+function exportCard() {
+  const key = quadrantKey(userNx, userNy);
+  const arch = ARCHETYPES[key];
+  document.getElementById('scArch').textContent = arch.name.toUpperCase();
+  document.getElementById('scArch').style.color = QUAD_COLOR[key];
+  document.getElementById('scSub').textContent = arch.sub + ' // AI DOOM ARCHETYPE';
+  const xPct = Math.round(userNx * 100), yPct = Math.round(userNy * 100);
+  document.getElementById('scCoords').innerHTML =
+    `TIMELINE <b>${xPct > 0 ? '+' : ''}${xPct}%</b> &nbsp;·&nbsp; DISRUPTION <b>${yPct > 0 ? '+' : ''}${yPct}%</b>`;
+
+  const src = document.getElementById('compassCanvas');
+  const dst = document.getElementById('shareCanvas');
+  dst.width = src.width; dst.height = src.height;
+  const dctx = dst.getContext('2d');
+  dctx.fillStyle = '#0f0d0a';
+  dctx.fillRect(0, 0, dst.width, dst.height);
+  dctx.drawImage(src, 0, 0);
+
+  html2canvas(document.getElementById('shareCard'), {
+    backgroundColor: '#0f0d0a', scale: 2
+  }).then(card => {
+    const a = document.createElement('a');
+    a.download = 'ai-doom-compass-intel.png';
+    a.href = card.toDataURL('image/png');
+    a.click();
+  });
+}
+
+/* ── FLOW ── */
+function startQuiz() {
+  stopPreview();
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('quiz').style.display = 'block';
+  buildSegments();
+  renderQuestion();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function restart() {
+  currentQ = 0; scores = { x: 0, y: 0 }; showFigures = false;
+  document.getElementById('toggleTrack').classList.remove('on');
+  document.getElementById('legend').classList.remove('visible');
+  document.getElementById('result').classList.remove('visible');
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('landing').classList.remove('hidden');
+  startPreview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── LANDING PREVIEW — radar sweep + wandering target ── */
+let previewRAF = null, previewRunning = false;
+function startPreview() {
+  const canvas = document.getElementById('previewCanvas');
+  if (!canvas) return;
+  previewRunning = true;
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width) || 360;
+  const pad = 18;
+  const gw = containerW - pad * 2;
+  const canvasH = gw + pad * 2;
+  canvas.width = containerW * 2; canvas.height = canvasH * 2;
+  canvas.style.width = containerW + 'px'; canvas.style.height = canvasH + 'px';
+  const gx = pad, gy = pad, gcx = gx + gw/2, gcy = gy + gw/2;
+
+  let dotX = 0.3, dotY = 0.3, targetX = 0.3, targetY = 0.3, holdTimer = 0;
+  let sweep = 0;
+  function pickTarget() {
+    targetX = Math.random() * 1.6 - 0.8;
+    targetY = Math.random() * 1.6 - 0.8;
+  }
+  pickTarget();
+  let lastTime = performance.now();
+
+  function drawFrame(now) {
+    if (!previewRunning) return;
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    sweep += dt * 0.8;
+
+    const dist = Math.hypot(targetX - dotX, targetY - dotY);
+    if (dist < 0.02) {
+      holdTimer += dt;
+      if (holdTimer > 1.2) { holdTimer = 0; pickTarget(); }
+    } else {
+      const lerp = 1 - Math.pow(0.15, dt * 1.8);
+      dotX += (targetX - dotX) * lerp;
+      dotY += (targetY - dotY) * lerp;
+    }
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.clearRect(0, 0, containerW, canvasH);
+
+    ctx.strokeStyle = 'rgba(122,104,68,0.18)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) {
+      const xp = gx + (gw/8) * i, yp = gy + (gw/8) * i;
+      ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+    }
+
+    // range rings
+    ctx.strokeStyle = 'rgba(212,168,92,0.18)';
+    ctx.setLineDash([2, 4]);
+    [0.33, 0.66, 1].forEach(r => {
+      ctx.beginPath(); ctx.arc(gcx, gcy, (gw/2) * r, 0, Math.PI*2); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    // axes
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = C.orange;
+    ctx.strokeStyle = 'rgba(232,114,42,0.45)';
+    ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+    ctx.shadowColor = C.ice;
+    ctx.strokeStyle = 'rgba(122,184,212,0.45)';
+    ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // radar sweep clipped to square
+    if (ctx.createConicGradient) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(gx, gy, gw, gw); ctx.clip();
+      const g = ctx.createConicGradient(sweep, gcx, gcy);
+      g.addColorStop(0, 'rgba(212,168,92,0.2)');
+      g.addColorStop(0.1, 'rgba(212,168,92,0)');
+      g.addColorStop(1, 'rgba(212,168,92,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(gx, gy, gw, gw);
+      ctx.restore();
+    }
+
+    // frame + brackets
+    ctx.strokeStyle = 'rgba(212,168,92,0.3)';
+    ctx.strokeRect(gx, gy, gw, gw);
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.6;
+    const bk = 10;
+    [[gx, gy, 1, 1], [gx + gw, gy, -1, 1], [gx, gy + gw, 1, -1], [gx + gw, gy + gw, -1, -1]].forEach(([cx, cy, sx, sy]) => {
+      ctx.beginPath();
+      ctx.moveTo(cx + sx * bk, cy);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx, cy + sy * bk);
+      ctx.stroke();
+    });
+    ctx.lineWidth = 1;
+
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const col = figureColor(f);
+      ctx.fillStyle = col + '90';
+      ctx.beginPath();
+      ctx.moveTo(fx, fy - 2.6); ctx.lineTo(fx + 2.6, fy); ctx.lineTo(fx, fy + 2.6); ctx.lineTo(fx - 2.6, fy);
+      ctx.closePath(); ctx.fill();
+    });
+
+    // wandering reticle
+    const px = gcx + dotX * (gw/2), py = gcy - dotY * (gw/2);
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, 16);
+    glow.addColorStop(0, 'rgba(232,114,42,0.45)');
+    glow.addColorStop(1, 'rgba(232,114,42,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI*2); ctx.stroke();
+    [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx, dy]) => {
+      ctx.beginPath();
+      ctx.moveTo(px + dx * 10, py + dy * 10);
+      ctx.lineTo(px + dx * 14, py + dy * 14);
+      ctx.stroke();
+    });
+    ctx.fillStyle = C.orange;
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI*2); ctx.fill();
+
+    ctx.font = '700 7px "IBM Plex Sans", sans-serif';
+    ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(232,184,64,0.75)';
+    ctx.fillText('CASSANDRA', gx + 5, gy + 12);
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(232,90,48,0.75)';
+    ctx.fillText('PANIC ROOM', gx + gw - 5, gy + 12);
+    ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(122,184,212,0.75)';
+    ctx.fillText('SHRUG', gx + 5, gy + gw - 7);
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(108,196,74,0.75)';
+    ctx.fillText('ACCELERATE', gx + gw - 5, gy + gw - 7);
+
+    previewRAF = requestAnimationFrame(drawFrame);
+  }
+  previewRAF = requestAnimationFrame(drawFrame);
+}
+function stopPreview() {
+  previewRunning = false;
+  if (previewRAF) { cancelAnimationFrame(previewRAF); previewRAF = null; }
+}
+startPreview();
+</script>
+</body>
+</html>

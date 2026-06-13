@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Doom Compass</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Google AdSense — replace ca-pub-XXXXXXXXXXXXXXXX with your real publisher ID -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg: #0f0d0a;
+    --surface: #161310;
+    --surface-raised: #1c1915;
+    --border: #2a2418;
+    --border-bright: #d4a85c;
+    --text: #e8dcc8;
+    --text-gold: #d4a85c;
+    --text-dim: #7a6844;
+    --accent: #e8722a;
+    --accent-glow: rgba(232, 114, 42, 0.2);
+    --gold-glow: rgba(212, 168, 92, 0.15);
+    --gold-glow-strong: rgba(212, 168, 92, 0.3);
+    --red: #e85a30;
+    --amber: #e8b840;
+    --blue: #4a9ec4;
+    --green: #6cc44a;
+    --ice: #7ab8d4;
+    --ice-dim: rgba(122, 184, 212, 0.12);
+    --ice-glow: rgba(122, 184, 212, 0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  /* Warm ambient glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(212,168,92,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 40%, rgba(122,184,212,0.025) 0%, transparent 45%),
+      radial-gradient(ellipse at 70% 100%, rgba(232,114,42,0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 1.5rem 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .container.wide { max-width: 1060px; }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 2.5rem 0 2rem;
+    border-bottom: 1px solid var(--border);
+    border-image: linear-gradient(90deg, var(--border) 0%, rgba(122,184,212,0.2) 50%, var(--border) 100%) 1;
+    margin-bottom: 2rem;
+  }
+
+  .boot-line {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-bottom: 0.15rem;
+    letter-spacing: 0.04em;
+    opacity: 0;
+    animation: bootIn 0.15s forwards;
+  }
+
+  .boot-line.ok span { color: var(--text-gold); }
+  .boot-line.warn { color: var(--accent); }
+
+  @keyframes bootIn {
+    to { opacity: 1; }
+  }
+
+  .header-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 3rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 1.5rem 0 0.5rem;
+    color: var(--text);
+    line-height: 1.05;
+  }
+
+  .header-title .doom {
+    color: var(--accent);
+    text-shadow: 0 0 25px var(--accent-glow);
+  }
+
+  .header-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ice);
+    opacity: 0.55;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .header-desc {
+    margin-top: 1rem;
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    font-weight: 300;
+    max-width: 500px;
+    line-height: 1.6;
+  }
+
+  .header-desc .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--ice);
+    margin-left: 3px;
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ── PROGRESS ── */
+  .progress-section {
+    margin-bottom: 2rem;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .progress-ascii {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
+
+  .progress-ascii .filled { color: var(--text-gold); }
+
+  .progress-label {
+    font-size: 0.68rem;
+    color: var(--ice);
+    opacity: 0.45;
+    margin-top: 0.25rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── QUESTION CARD ── */
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 1px solid rgba(122,184,212,0.1);
+    border-radius: 3px;
+    margin-bottom: 1.5rem;
+    animation: cardIn 0.35s ease-out;
+    overflow: hidden;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    background: var(--surface-raised);
+  }
+
+  .card-header .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    margin-right: 0.5rem;
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  .card-body {
+    padding: 1.75rem 1.5rem;
+  }
+
+  .question-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--ice);
+    opacity: 0.5;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .question-text {
+    font-size: 1.3rem;
+    font-weight: 300;
+    line-height: 1.55;
+    margin-bottom: 2rem;
+    color: var(--text);
+  }
+
+  /* ── LIKERT ── */
+  .likert-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding: 0 0.15rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .likert-options {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.4rem;
+  }
+
+  .likert-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 1rem 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'IBM Plex Sans', sans-serif;
+    position: relative;
+  }
+
+  .likert-btn:hover, .likert-btn:active {
+    border-color: var(--text-gold);
+    background: rgba(212,168,92,0.04);
+    box-shadow: 0 0 15px var(--gold-glow);
+  }
+
+  .likert-dot {
+    border-radius: 50%;
+    background: var(--border);
+    transition: all 0.2s;
+  }
+
+  .likert-btn:hover .likert-dot {
+    background: var(--text-gold);
+    box-shadow: 0 0 8px var(--gold-glow-strong);
+  }
+
+  .likert-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.48rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  .likert-btn:hover .likert-label { color: var(--text-gold); }
+
+  .likert-btn, .toggle-wrap, .restart-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* ── RESULT SCREEN ── */
+  .result-screen { display: none; animation: cardIn 0.5s ease-out; }
+  .result-screen.visible { display: block; }
+
+  .compass-row {
+    display: flex;
+    gap: 0;
+    margin-bottom: 2rem;
+    align-items: stretch;
+  }
+
+  .compass-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .compass-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    background: var(--surface-raised);
+  }
+
+  .compass-bar .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    margin-right: 0.5rem;
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  .compass-inner { padding: 1.25rem; }
+
+  .compass-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .compass-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ice);
+    opacity: 0.55;
+  }
+
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .toggle-wrap span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.2s;
+  }
+
+  .toggle-track {
+    width: 34px;
+    height: 17px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: transparent;
+    position: relative;
+    transition: all 0.25s;
+    flex-shrink: 0;
+  }
+
+  .toggle-track.on {
+    border-color: var(--text-gold);
+    background: rgba(212,168,92,0.12);
+    box-shadow: 0 0 8px var(--gold-glow);
+  }
+
+  .toggle-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .toggle-track.on .toggle-thumb {
+    transform: translateX(17px);
+    background: var(--text-gold);
+    box-shadow: 0 0 6px var(--gold-glow-strong);
+  }
+
+  .compass-container { position: relative; width: 100%; }
+  .compass-canvas { width: 100%; height: 100%; display: block; }
+
+  /* TOOLTIP */
+  .compass-tooltip {
+    position: absolute;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.6rem 0.8rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 10;
+    max-width: 220px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  .compass-tooltip.visible { opacity: 1; }
+
+  .tooltip-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    color: var(--ice);
+    margin-bottom: 0.2rem;
+  }
+
+  .tooltip-role {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.3rem;
+    line-height: 1.3;
+  }
+
+  .tooltip-quote {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--accent);
+    line-height: 1.4;
+  }
+
+  /* LEGEND */
+  .legend-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 3px 0 0 3px;
+    padding: 1.25rem;
+    width: 220px;
+    flex-shrink: 0;
+    display: none;
+    overflow-y: auto;
+  }
+
+  .legend-panel.visible { display: flex; flex-direction: column; }
+
+  .legend-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ice);
+    opacity: 0.5;
+    margin-bottom: 0.75rem;
+  }
+
+  .legend-list { display: flex; flex-direction: column; gap: 0.35rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; }
+
+  .legend-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.52rem;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+  }
+
+  /* RESULT DESCRIPTION */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 1px solid rgba(122,184,212,0.1);
+    border-radius: 3px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+
+  .result-bar {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    background: var(--surface-raised);
+  }
+
+  .result-bar .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    margin-right: 0.5rem;
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  .result-body-inner { padding: 1.75rem 1.5rem; }
+
+  .result-archetype {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+    letter-spacing: 0.01em;
+  }
+
+  .result-subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ice);
+    opacity: 0.5;
+    margin-bottom: 1.25rem;
+  }
+
+  .result-text {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+    font-weight: 300;
+  }
+
+  .result-coords {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .result-coords span {
+    color: var(--text-gold);
+    text-shadow: 0 0 6px var(--gold-glow);
+  }
+
+  .restart-btn {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-gold);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .restart-btn:hover {
+    border-color: var(--text-gold);
+    background: rgba(212,168,92,0.04);
+    box-shadow: 0 0 20px var(--gold-glow);
+  }
+
+  /* ── LANDING PAGE ── */
+  .landing { animation: cardIn 0.5s ease-out; }
+  .landing.hidden { display: none; }
+
+  .landing-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    text-align: center;
+    padding: 2rem 0;
+  }
+
+  .landing-boot {
+    margin-bottom: 2rem;
+    text-align: left;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .landing-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 3.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.05;
+    margin-bottom: 0.5rem;
+  }
+
+  .landing-title .doom {
+    color: var(--accent);
+    text-shadow: 0 0 30px var(--accent-glow);
+  }
+
+  .landing-tagline {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ice);
+    opacity: 0.6;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+  }
+
+  .landing-desc {
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: var(--text-dim);
+    line-height: 1.7;
+    max-width: 480px;
+    margin: 0 auto 1rem;
+  }
+
+  .landing-meta {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin: 1.75rem 0 2.5rem;
+    flex-wrap: wrap;
+  }
+
+  .landing-meta-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .meta-value {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-gold);
+    text-shadow: 0 0 10px var(--gold-glow);
+  }
+
+  .meta-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .meta-divider {
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+  }
+
+  .start-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2.5rem;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    background: rgba(232, 114, 42, 0.06);
+    color: var(--accent);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-transform: uppercase;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .start-btn:hover {
+    background: rgba(232, 114, 42, 0.12);
+    box-shadow: 0 0 25px var(--accent-glow), 0 0 60px rgba(232,114,42,0.08);
+    transform: translateY(-1px);
+  }
+
+  .start-btn .arrow {
+    font-size: 1.2rem;
+    transition: transform 0.25s;
+  }
+
+  .start-btn:hover .arrow {
+    transform: translateX(3px);
+  }
+
+  .landing-preview {
+    width: 100%;
+    max-width: 380px;
+    margin: 0.5rem auto 2.5rem;
+    position: relative;
+  }
+
+  .preview-canvas {
+    width: 100%;
+    display: block;
+    border-radius: 3px;
+  }
+
+  /* ── QUIZ HEADER (compact, shown during quiz) ── */
+  .quiz-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+    border-image: linear-gradient(90deg, var(--border) 0%, rgba(122,184,212,0.2) 50%, var(--border) 100%) 1;
+    margin-bottom: 2rem;
+  }
+
+  .quiz-header-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .quiz-header-title .doom {
+    color: var(--accent);
+  }
+
+  .quiz-header-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--ice);
+    opacity: 0.5;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 750px) {
+    .landing-title { font-size: 2.6rem; }
+    .landing-desc { font-size: 1rem; }
+    .landing-preview { max-width: 300px; }
+    .start-btn { padding: 0.85rem 2rem; font-size: 0.95rem; }
+    .quiz-header-title { font-size: 1.1rem; }
+  }
+
+  @media (max-width: 400px) {
+    .landing-hero { min-height: auto; padding: 1.5rem 0; }
+    .landing-title { font-size: 2rem; }
+    .landing-desc { font-size: 0.92rem; }
+    .landing-boot .boot-line { font-size: 0.52rem; }
+    .landing-preview { max-width: 260px; }
+    .start-btn { padding: 0.75rem 1.5rem; font-size: 0.85rem; width: 100%; justify-content: center; }
+    .quiz-header-title { font-size: 1rem; }
+    .quiz-header-tag { display: none; }
+  }
+
+  /* ── AD UNITS ── */
+  .ad-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 2rem auto;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ad-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    opacity: 0.4;
+    margin-bottom: 0.4rem;
+  }
+
+  .ad-slot {
+    width: 100%;
+    max-width: 728px;
+    border: 1px dashed rgba(122,184,212,0.12);
+    border-radius: 3px;
+    background: linear-gradient(135deg, rgba(22,19,16,0.9) 0%, rgba(28,25,21,0.9) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ad-slot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(122,184,212,0.015) 10px, rgba(122,184,212,0.015) 20px);
+    pointer-events: none;
+  }
+
+  .ad-leaderboard { height: 90px; }
+  .ad-banner { height: 100px; }
+  .ad-rectangle { max-width: 336px; height: 280px; }
+
+  .ad-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 1;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .ad-content .ad-icon {
+    font-size: 1.5rem;
+    opacity: 0.3;
+  }
+
+  .ad-content .ad-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  .ad-content .ad-cta {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    color: var(--ice);
+    opacity: 0.35;
+    border: 1px solid rgba(122,184,212,0.15);
+    border-radius: 2px;
+    padding: 0.25rem 0.75rem;
+  }
+
+  .ad-content .ad-size {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.5rem;
+    color: var(--text-dim);
+    opacity: 0.25;
+  }
+
+  /* Inline ad between questions */
+  .ad-inline { margin: 1.5rem auto 2rem; }
+
+  /* Result page ads */
+  .ad-result { margin: 0 auto 2rem; }
+
+  @media (max-width: 750px) {
+    .ad-leaderboard { height: 60px; }
+    .ad-banner { height: 80px; }
+    .ad-rectangle { max-width: 300px; height: 250px; }
+    .ad-content .ad-title { font-size: 0.75rem; }
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 750px) {
+    .container { padding: 1rem 0.85rem; }
+    .container.wide { max-width: 100%; }
+    .header { padding: 1.75rem 0 1.25rem; margin-bottom: 1.5rem; }
+    .header-title { font-size: 2.2rem; }
+    .boot-line { font-size: 0.58rem; }
+    .header-sub { font-size: 0.62rem; }
+    .header-desc { font-size: 0.95rem; }
+
+    .question-card { margin-bottom: 1rem; }
+    .card-body { padding: 1.25rem 1rem; }
+    .question-text { font-size: 1.15rem; margin-bottom: 1.5rem; }
+
+    .likert-options { gap: 0.3rem; }
+    .likert-btn { padding: 0.75rem 0.15rem; gap: 0.35rem; }
+    .likert-label { font-size: 0.4rem; letter-spacing: 0; }
+
+    .compass-row { flex-direction: column; }
+    .compass-wrapper { order: 1; }
+    .compass-inner { padding: 0.85rem; }
+    .compass-title { font-size: 0.55rem; }
+    .toggle-wrap span { font-size: 0.5rem; }
+
+    .legend-panel {
+      width: 100%;
+      border-right: 1px solid var(--border);
+      border-radius: 0 0 3px 3px;
+      border-top: none;
+      order: 2;
+      padding: 1rem;
+    }
+    .legend-panel.visible { display: block; }
+    .legend-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.25rem 0.75rem;
+    }
+
+    .result-body-inner { padding: 1.25rem 1rem; }
+    .result-archetype { font-size: 1.6rem; }
+    .result-text { font-size: 0.95rem; }
+    .result-coords { font-size: 0.6rem; gap: 1rem; }
+    .restart-btn { font-size: 0.7rem; padding: 0.85rem; }
+
+    .compass-tooltip { max-width: 180px; }
+    .tooltip-name { font-size: 0.58rem; }
+    .tooltip-role { font-size: 0.72rem; }
+    .tooltip-quote { font-size: 0.72rem; }
+  }
+
+  @media (max-width: 400px) {
+    .container { padding: 0.75rem 0.6rem; }
+    .header-title { font-size: 1.8rem; }
+    .question-text { font-size: 1.02rem; }
+    .likert-label { font-size: 0.36rem; }
+    .likert-btn { padding: 0.6rem 0.1rem; gap: 0.25rem; }
+    .legend-list { grid-template-columns: 1fr; }
+    .result-archetype { font-size: 1.35rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="mainContainer">
+
+  <!-- ── LANDING PAGE ── -->
+  <div class="landing" id="landing">
+    <div class="landing-hero">
+      <div class="landing-boot">
+        <div class="boot-line" style="animation-delay:0.15s">DOOM_SYS v2.7 &mdash; threat assessment module initializing</div>
+        <div class="boot-line" style="animation-delay:0.35s">cognitive bias matrix............. <span class="ok"><span>loaded</span></span></div>
+        <div class="boot-line" style="animation-delay:0.55s">existential risk calibration...... <span class="ok"><span>ready</span></span></div>
+        <div class="boot-line warn" style="animation-delay:0.75s">alignment confidence: below threshold</div>
+      </div>
+
+      <h1 class="landing-title">The AI <span class="doom">Doom</span> Compass</h1>
+      <div class="landing-tagline">Existential Risk Diagnostic</div>
+
+      <p class="landing-desc">Where do you really stand on AI risk? Rate 30 statements and we'll plot your position on the doom compass &mdash; then show you which famous thinkers share your outlook.</p>
+
+      <!-- Animated preview compass -->
+      <div class="landing-preview">
+        <canvas id="previewCanvas" class="preview-canvas"></canvas>
+      </div>
+
+      <button class="start-btn" onclick="startQuiz()">
+        Begin Assessment <span class="arrow">&rarr;</span>
+      </button>
+    </div>
+
+    <!-- AD: Landing leaderboard -->
+    <div class="ad-unit">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot ad-leaderboard"
+           style="display:block"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="1234567890"
+           data-ad-format="horizontal"
+           data-adtest="on"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
+  </div>
+
+  <!-- ── QUIZ ── -->
+  <div class="quiz-section" id="quiz" style="display:none;">
+    <div class="quiz-header">
+      <div class="quiz-header-title">The AI <span class="doom">Doom</span> Compass</div>
+      <div class="quiz-header-tag">In Progress</div>
+    </div>
+    <div class="progress-section">
+      <div class="progress-ascii" id="progressBar">[░░░░░░░░░░░░░░░░░░░░] 0%</div>
+      <div class="progress-label" id="progressText">STATEMENT 01 OF 30</div>
+    </div>
+    <div id="questionContainer"></div>
+    <div id="quizAdContainer"></div>
+  </div>
+
+  <div class="result-screen" id="result">
+    <!-- AD: Above results -->
+    <div class="ad-unit ad-result">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot ad-banner"
+           style="display:block"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="2345678901"
+           data-ad-format="horizontal"
+           data-adtest="on"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
+    <div class="compass-row">
+      <div class="legend-panel" id="legendPanel">
+        <div class="legend-title">Notable Figures</div>
+        <div class="legend-list" id="legendGrid"></div>
+      </div>
+
+      <div class="compass-wrapper">
+        <div class="compass-bar">
+          <div><span class="dot"></span>DOOM_COMPASS &mdash; results</div>
+        </div>
+        <div class="compass-inner">
+          <div class="compass-header">
+            <div class="compass-title">Your Position</div>
+            <div class="toggle-wrap" onclick="toggleFigures()">
+              <span>Show Famous Figures</span>
+              <div class="toggle-track" id="toggleTrack">
+                <div class="toggle-thumb"></div>
+              </div>
+            </div>
+          </div>
+          <div class="compass-container" id="compassArea">
+            <canvas class="compass-canvas" id="compassCanvas"></canvas>
+            <div class="compass-tooltip" id="tooltip">
+              <div class="tooltip-name" id="tooltipName"></div>
+              <div class="tooltip-role" id="tooltipRole"></div>
+              <div class="tooltip-quote" id="tooltipQuote"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-bar">
+        <div><span class="dot"></span>ANALYSIS OUTPUT</div>
+      </div>
+      <div class="result-body-inner" id="resultDescription"></div>
+    </div>
+
+    <!-- AD: Below result description -->
+    <div class="ad-unit ad-result">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot ad-rectangle"
+           style="display:block"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="3456789012"
+           data-ad-format="rectangle"
+           data-adtest="on"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
+
+    <button class="restart-btn" onclick="restart()">Retake Assessment</button>
+  </div>
+</div>
+
+<script>
+const figures = [
+  { name: "Eliezer Yudkowsky", role: "AI Alignment Researcher, MIRI", x: 0.7, y: 0.95, color: "#c44a2a",
+    quote: "We're all going to die." },
+  { name: "Geoffrey Hinton", role: "Turing Award Winner, ex-Google", x: 0.5, y: 0.8, color: "#d4693a",
+    quote: "These things could get smarter than us and decide to take over." },
+  { name: "Nick Bostrom", role: "Philosopher, Future of Humanity Institute", x: -0.1, y: 0.85, color: "#d4a85c",
+    quote: "The default outcome is doom." },
+  { name: "Connor Leahy", role: "CEO, Conjecture", x: 0.65, y: 0.9, color: "#c4553a",
+    quote: "We are not ready. Nobody is ready." },
+  { name: "Max Tegmark", role: "Physicist, Future of Life Institute", x: 0.3, y: 0.75, color: "#d48a4a",
+    quote: "We need a pause before it's too late." },
+  { name: "Marc Andreessen", role: "VC, Andreessen Horowitz", x: 0.6, y: -0.7, color: "#8aaa6a",
+    quote: "AI will save the world." },
+  { name: "Yann LeCun", role: "Chief AI Scientist, Meta", x: -0.3, y: -0.75, color: "#6a8fa8",
+    quote: "AI is not going to destroy the world. Chill." },
+  { name: "Andrew Ng", role: "AI Researcher, Stanford", x: 0.1, y: -0.6, color: "#7aa88a",
+    quote: "AI risk fears are overblown." },
+  { name: "Pedro Domingos", role: "Professor, Univ. of Washington", x: -0.4, y: -0.65, color: "#6a88aa",
+    quote: "The robots are not about to rise." },
+  { name: "Sam Altman", role: "CEO, OpenAI", x: 0.65, y: 0.3, color: "#b89070",
+    quote: "AGI is coming. It'll be the best and scariest thing." },
+  { name: "Dario Amodei", role: "CEO, Anthropic", x: 0.5, y: 0.45, color: "#a88870",
+    quote: "The risks are real but navigable if we're serious." },
+  { name: "Demis Hassabis", role: "CEO, Google DeepMind", x: 0.35, y: 0.35, color: "#9a9080",
+    quote: "AI is the most important technology ever. We must be careful." },
+  { name: "Satya Nadella", role: "CEO, Microsoft", x: 0.45, y: -0.2, color: "#8a9a7a",
+    quote: "AI is the next platform shift." },
+  { name: "Gary Marcus", role: "AI Critic, NYU Professor", x: -0.5, y: -0.1, color: "#7a90a0",
+    quote: "Deep learning is hitting a wall." },
+  { name: "Emily Bender", role: "Computational Linguist, UW", x: -0.4, y: 0.2, color: "#c4a05c",
+    quote: "It's not intelligent — and the hype is doing real harm." },
+  { name: "Lex Fridman", role: "Podcaster, MIT Researcher", x: 0.3, y: 0.2, color: "#aa9878",
+    quote: "I try to hold space for both wonder and worry." },
+  { name: "Joe Rogan", role: "Podcaster, The JRE", x: 0.2, y: 0.4, color: "#d4904a",
+    quote: "This AI stuff is wild, man. It's gonna change everything." },
+  { name: "Ezra Klein", role: "Journalist, The New York Times", x: 0.15, y: 0.55, color: "#c4785a",
+    quote: "I don't think we're emotionally prepared for what's coming." },
+];
+
+const questions = [
+  { text: "AGI — artificial general intelligence — will arrive within the next ten years.", x: 2, y: 0.5 },
+  { text: "The pace of AI progress has been dramatically overhyped by the tech industry.", x: -2, y: -0.5 },
+  { text: "Current AI models are already showing early sparks of general reasoning ability.", x: 1.5, y: 0.5 },
+  { text: "We are still many decades away from AI systems that can truly replace human judgment.", x: -2, y: -0.5 },
+  { text: "The speed of AI progress over the last three years has made me seriously revise my expectations.", x: 1.5, y: 0.5 },
+  { text: "AI \"breakthroughs\" almost always look less impressive once the initial hype dies down.", x: -1.5, y: -0.5 },
+  { text: "Major AI-driven disruptions to the job market will be visible within five years, not twenty.", x: 2, y: 1 },
+  { text: "History shows that transformative technologies take far longer to reshape society than early adopters predict.", x: -1.5, y: -0.5 },
+  { text: "By 2030, most knowledge workers will use AI as a core part of their daily workflow.", x: 1.5, y: 0.5 },
+  { text: "The current wave of AI will plateau soon, much like previous hype cycles in the field.", x: -2, y: -0.5 },
+  { text: "We are in the early stages of an intelligence explosion that will unfold within this decade.", x: 2, y: 1 },
+  { text: "AI capabilities are improving so fast that safety research cannot possibly keep up.", x: 1.5, y: 1 },
+  { text: "Talk of imminent superintelligence reflects a fundamental misunderstanding of how these systems work.", x: -2, y: -1 },
+  { text: "The gap between today's AI and true human-level intelligence is far smaller than most people think.", x: 1.5, y: 0.5 },
+  { text: "AI will eventually render most current human jobs obsolete — not just transform them.", x: 0.5, y: 2 },
+  { text: "Humanity has always adapted to new technologies, and AI will be no different.", x: -0.5, y: -2 },
+  { text: "AI poses a genuine existential risk to human civilization.", x: 0.5, y: 2 },
+  { text: "The risks of AI are mostly about misuse by bad actors, not the technology itself going wrong.", x: 0, y: -1.5 },
+  { text: "AI will create more new jobs and opportunities than it destroys.", x: 0, y: -2 },
+  { text: "Within our lifetimes, AI could fundamentally alter what it means to be human.", x: 0.5, y: 2 },
+  { text: "Governments are dangerously unprepared for the social disruption AI will cause.", x: 0.5, y: 1.5 },
+  { text: "The real danger of AI isn't dramatic — it's a slow, boring erosion of human agency and purpose.", x: -0.5, y: 1.5 },
+  { text: "AI-generated art, writing, and music will largely replace human creative professionals.", x: 0.5, y: 2 },
+  { text: "Worrying about AI risk is a luxury for rich technologists — most people have bigger problems right now.", x: -0.5, y: -2 },
+  { text: "AI will concentrate power in the hands of a few corporations and governments more than any technology before it.", x: 0, y: 2 },
+  { text: "A world where AI handles most cognitive labor could actually be a pretty good one for most people.", x: 0, y: -1.5 },
+  { text: "Once AI can improve its own code, progress will become uncontrollable.", x: 1, y: 2 },
+  { text: "I have personally changed my career plans, education, or investments because of AI.", x: 1, y: 1 },
+  { text: "If a true superintelligence emerged, it would be impossible for humans to stay in control.", x: 0.5, y: 2 },
+  { text: "The economic benefits of AI will be broadly shared across society, not hoarded by elites.", x: -0.5, y: -2 }
+];
+
+const scaleConfig = [
+  { label: "Strongly<br>Disagree", mult: -1, size: 14 },
+  { label: "Disagree",            mult: -0.5, size: 10 },
+  { label: "Neutral",             mult: 0, size: 6 },
+  { label: "Agree",               mult: 0.5, size: 10 },
+  { label: "Strongly<br>Agree",   mult: 1, size: 14 }
+];
+
+let currentQ = 0;
+let scores = { x: 0, y: 0 };
+let userNx = 0, userNy = 0;
+let showFigures = false;
+let canvasLayout = {};
+
+function renderProgressBar() {
+  const pct = Math.round((currentQ / questions.length) * 100);
+  const filled = Math.round((currentQ / questions.length) * 20);
+  document.getElementById('progressBar').innerHTML =
+    `[<span class="filled">${'█'.repeat(filled)}</span>${'░'.repeat(20 - filled)}] ${pct}%`;
+  const num = String(currentQ + 1).padStart(2, '0');
+  document.getElementById('progressText').textContent = `STATEMENT ${num} OF ${questions.length}`;
+}
+
+function renderQuestion() {
+  const q = questions[currentQ];
+  document.getElementById('questionContainer').innerHTML = `
+    <div class="question-card">
+      <div class="card-header">
+        <div><span class="dot"></span>STMT ${String(currentQ+1).padStart(2,'0')}/${questions.length}</div>
+        <div>EVALUATE</div>
+      </div>
+      <div class="card-body">
+        <div class="question-label">Rate your agreement</div>
+        <div class="question-text">${q.text}</div>
+        <div class="likert-labels"><span>Disagree</span><span>Agree</span></div>
+        <div class="likert-options">
+          ${scaleConfig.map(s => `
+            <button class="likert-btn" onclick="answer(${s.mult})">
+              <div class="likert-dot" style="width:${s.size}px;height:${s.size}px;"></div>
+              <span class="likert-label">${s.label}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+  renderProgressBar();
+
+  // Show inline ad every 10 questions
+  const adContainer = document.getElementById('quizAdContainer');
+  if (currentQ > 0 && currentQ % 10 === 0) {
+    adContainer.innerHTML = `
+      <div class="ad-unit ad-inline">
+        <div class="ad-label">Advertisement</div>
+        <ins class="adsbygoogle ad-slot ad-banner"
+             style="display:block"
+             data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+             data-ad-slot="4567890123"
+             data-ad-format="horizontal"
+             data-adtest="on"></ins>
+      </div>
+    `;
+    try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
+  } else {
+    adContainer.innerHTML = '';
+  }
+}
+
+function answer(mult) {
+  const q = questions[currentQ];
+  scores.x += q.x * mult;
+  scores.y += q.y * mult;
+  currentQ++;
+  if (currentQ >= questions.length) showResult();
+  else renderQuestion();
+}
+
+function showResult() {
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('mainContainer').classList.add('wide');
+  document.getElementById('result').classList.add('visible');
+
+  let maxX = 0, maxY = 0;
+  questions.forEach(q => { maxX += Math.abs(q.x); maxY += Math.abs(q.y); });
+  userNx = Math.max(-1, Math.min(1, scores.x / maxX));
+  userNy = Math.max(-1, Math.min(1, scores.y / maxY));
+
+  drawCompass();
+  writeDescription(userNx, userNy);
+  buildLegend();
+  setupTooltip();
+}
+
+function drawCompass() {
+  const canvas = document.getElementById('compassCanvas');
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width);
+
+  const isMobile = containerW < 500;
+  const padSide = isMobile ? 36 : 40;
+  const padTop = isMobile ? 52 : 60;
+  const padBottom = isMobile ? 58 : 60;
+  const graphSize = containerW - padSide * 2;
+  const canvasW = containerW;
+  const canvasH = graphSize + padTop + padBottom;
+
+  canvas.width = canvasW * 2;
+  canvas.height = canvasH * 2;
+  canvas.style.width = canvasW + 'px';
+  canvas.style.height = canvasH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+
+  const gx = padSide;
+  const gy = padTop;
+  const gw = graphSize;
+  const gcx = gx + gw / 2;
+  const gcy = gy + gw / 2;
+
+  canvasLayout = { canvasW, canvasH, gx, gy, gw, gcx, gcy };
+
+  // Grid — warm subtle lines
+  ctx.strokeStyle = 'rgba(212,168,92,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const xp = gx + (gw / 10) * i;
+    const yp = gy + (gw / 10) * i;
+    ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+  }
+
+  // Quadrant fills — vibrant
+  const a = 0.055;
+  ctx.fillStyle = `rgba(232,184,64,${a})`;  ctx.fillRect(gx, gy, gw/2, gw/2);
+  ctx.fillStyle = `rgba(232,90,48,${a})`;   ctx.fillRect(gcx, gy, gw/2, gw/2);
+  ctx.fillStyle = `rgba(74,158,196,${a})`;  ctx.fillRect(gx, gcy, gw/2, gw/2);
+  ctx.fillStyle = `rgba(108,196,74,${a})`;  ctx.fillRect(gcx, gcy, gw/2, gw/2);
+
+  // Axes
+  ctx.strokeStyle = 'rgba(212,168,92,0.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+  ctx.strokeStyle = 'rgba(212,168,92,0.1)';
+  ctx.strokeRect(gx, gy, gw, gw);
+
+  // Quadrant labels
+  const titleFont = isMobile ? 'bold 8px "Share Tech Mono", monospace' : '600 9px "IBM Plex Sans", sans-serif';
+  const subFont = isMobile ? '6.5px "Share Tech Mono", monospace' : '7px "Share Tech Mono", monospace';
+  const axisFont = isMobile ? '7px "Share Tech Mono", monospace' : '9px "Share Tech Mono", monospace';
+  const figureFont = isMobile ? '6.5px "Share Tech Mono", monospace' : '7px "Share Tech Mono", monospace';
+  const youFont = isMobile ? '600 8px "IBM Plex Sans", sans-serif' : '600 9px "IBM Plex Sans", sans-serif';
+
+  ctx.textAlign = 'left';
+  ctx.font = titleFont;
+  ctx.fillStyle = 'rgba(232,184,64,0.8)';
+  ctx.fillText('THE CASSANDRA', gx + 2, gy - (isMobile ? 22 : 18));
+  ctx.font = subFont;
+  ctx.fillStyle = 'rgba(232,184,64,0.4)';
+  ctx.fillText('Slow collapse, total upheaval', gx + 2, gy - (isMobile ? 10 : 7));
+
+  ctx.textAlign = 'right';
+  ctx.font = titleFont;
+  ctx.fillStyle = 'rgba(232,90,48,0.8)';
+  ctx.fillText('THE PANIC ROOM', gx + gw - 2, gy - (isMobile ? 22 : 18));
+  ctx.font = subFont;
+  ctx.fillStyle = 'rgba(232,90,48,0.45)';
+  ctx.fillText('Coming fast & for everything', gx + gw - 2, gy - (isMobile ? 10 : 7));
+
+  ctx.textAlign = 'left';
+  ctx.font = titleFont;
+  ctx.fillStyle = 'rgba(74,158,196,0.8)';
+  ctx.fillText('THE SHRUG', gx + 2, gy + gw + (isMobile ? 16 : 14));
+  ctx.font = subFont;
+  ctx.fillStyle = 'rgba(74,158,196,0.45)';
+  if (isMobile) {
+    ctx.fillText('Distant future,', gx + 2, gy + gw + 28);
+    ctx.fillText('manageable bumps', gx + 2, gy + gw + 38);
+  } else {
+    ctx.fillText('Distant future, manageable bumps', gx + 2, gy + gw + 25);
+  }
+
+  ctx.textAlign = 'right';
+  ctx.font = titleFont;
+  ctx.fillStyle = 'rgba(108,196,74,0.8)';
+  ctx.fillText('THE ACCELERATIONIST', gx + gw - 2, gy + gw + (isMobile ? 16 : 14));
+  ctx.font = subFont;
+  ctx.fillStyle = 'rgba(108,196,74,0.45)';
+  if (isMobile) {
+    ctx.fillText('Coming soon,', gx + gw - 2, gy + gw + 28);
+    ctx.fillText('but we\'ll adapt', gx + gw - 2, gy + gw + 38);
+  } else {
+    ctx.fillText('Coming soon, but we\'ll adapt', gx + gw - 2, gy + gw + 25);
+  }
+
+  // Axis labels
+  ctx.fillStyle = 'rgba(212,168,92,0.22)';
+  ctx.font = axisFont;
+  ctx.textAlign = 'center';
+  ctx.fillText('DISTANT', gx + gw * 0.15, gy + gw + (isMobile ? 50 : 46));
+  ctx.fillText('IMMINENT', gx + gw * 0.85, gy + gw + (isMobile ? 50 : 46));
+
+  ctx.save(); ctx.translate(gx - (isMobile ? 14 : 14), gy + gw * 0.15); ctx.rotate(-Math.PI/2);
+  ctx.fillText('TOTAL UPHEAVAL', 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(gx - (isMobile ? 14 : 14), gy + gw * 0.85); ctx.rotate(-Math.PI/2);
+  ctx.fillText('MINOR BUMPS', 0, 0); ctx.restore();
+
+  // Famous figures
+  if (showFigures) {
+    const dotR = isMobile ? 3 : 4;
+    const glowR = isMobile ? 9 : 12;
+    figures.forEach(f => {
+      const fx = gcx + f.x * (gw/2);
+      const fy = gcy - f.y * (gw/2);
+      const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, glowR);
+      g.addColorStop(0, f.color + '50');
+      g.addColorStop(1, f.color + '00');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(fx, fy, glowR, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = f.color;
+      ctx.beginPath(); ctx.arc(fx, fy, dotR, 0, Math.PI*2); ctx.fill();
+      ctx.font = figureFont;
+      ctx.textAlign = 'center';
+      ctx.fillText(f.name.split(' ').pop(), fx, fy - (isMobile ? 6 : 8));
+    });
+  }
+
+  // User dot — warm gold
+  const px = gcx + userNx * (gw/2), py = gcy - userNy * (gw/2);
+  const userGlow = isMobile ? 22 : 30;
+  const userDot = isMobile ? 5.5 : 7;
+  const userInner = isMobile ? 2 : 2.5;
+
+  const grad = ctx.createRadialGradient(px, py, 0, px, py, userGlow);
+  grad.addColorStop(0, 'rgba(232,114,42,0.45)');
+  grad.addColorStop(1, 'rgba(232,114,42,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(px, py, userGlow, 0, Math.PI*2); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(212,168,92,0.25)';
+  ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px, gy + gw); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx, py); ctx.lineTo(gx + gw, py); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#e8722a';
+  ctx.beginPath(); ctx.arc(px, py, userDot, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#0f0d0a';
+  ctx.beginPath(); ctx.arc(px, py, userInner, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#e8722a';
+  ctx.font = youFont;
+  ctx.textAlign = 'center';
+  ctx.fillText('YOU', px, py - (isMobile ? 9 : 12));
+}
+
+function toggleFigures() {
+  showFigures = !showFigures;
+  document.getElementById('toggleTrack').classList.toggle('on', showFigures);
+  document.getElementById('legendPanel').classList.toggle('visible', showFigures);
+  drawCompass();
+}
+
+function buildLegend() {
+  document.getElementById('legendGrid').innerHTML = figures.map(f => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${f.color};box-shadow:0 0 4px ${f.color}30;"></div>
+      <span class="legend-name">${f.name}</span>
+    </div>
+  `).join('');
+}
+
+function setupTooltip() {
+  const compassContainer = document.getElementById('compassArea');
+  const canvas = document.getElementById('compassCanvas');
+  const tooltip = document.getElementById('tooltip');
+
+  canvas.addEventListener('mousemove', e => {
+    if (!showFigures) { tooltip.classList.remove('visible'); return; }
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvasLayout.canvasW / rect.width;
+    const scaleY = canvasLayout.canvasH / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    const { gcx, gcy, gw } = canvasLayout;
+
+    let hit = null, minDist = 18;
+    figures.forEach(f => {
+      const fx = gcx + f.x * (gw/2);
+      const fy = gcy - f.y * (gw/2);
+      const d = Math.sqrt((mx-fx)**2 + (my-fy)**2);
+      if (d < minDist) { minDist = d; hit = f; }
+    });
+
+    if (hit) {
+      document.getElementById('tooltipName').textContent = hit.name;
+      document.getElementById('tooltipRole').textContent = hit.role;
+      document.getElementById('tooltipQuote').textContent = `"${hit.quote}"`;
+      const containerRect = compassContainer.getBoundingClientRect();
+      let tx = e.clientX - containerRect.left + 16;
+      let ty = e.clientY - containerRect.top - 10;
+      if (tx + 230 > containerRect.width) tx = e.clientX - containerRect.left - 230;
+      if (ty + 100 > containerRect.height) ty = e.clientY - containerRect.top - 90;
+      if (ty < 0) ty = 5;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+      tooltip.classList.add('visible');
+    } else {
+      tooltip.classList.remove('visible');
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+
+  canvas.addEventListener('touchstart', e => {
+    if (!showFigures) { tooltip.classList.remove('visible'); return; }
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvasLayout.canvasW / rect.width;
+    const scaleY = canvasLayout.canvasH / rect.height;
+    const mx = (touch.clientX - rect.left) * scaleX;
+    const my = (touch.clientY - rect.top) * scaleY;
+    const { gcx, gcy, gw } = canvasLayout;
+
+    let hit = null, minDist = 30;
+    figures.forEach(f => {
+      const fx = gcx + f.x * (gw/2);
+      const fy = gcy - f.y * (gw/2);
+      const d = Math.sqrt((mx-fx)**2 + (my-fy)**2);
+      if (d < minDist) { minDist = d; hit = f; }
+    });
+
+    if (hit) {
+      document.getElementById('tooltipName').textContent = hit.name;
+      document.getElementById('tooltipRole').textContent = hit.role;
+      document.getElementById('tooltipQuote').textContent = `"${hit.quote}"`;
+      const containerRect = compassContainer.getBoundingClientRect();
+      const hitFx = gcx + hit.x * (gw/2);
+      const hitFy = gcy - hit.y * (gw/2);
+      const dotCssX = hitFx / scaleX;
+      const dotCssY = hitFy / scaleY;
+      const canvasOffset = canvas.getBoundingClientRect();
+      const contOffset = containerRect;
+      const baseX = (canvasOffset.left - contOffset.left) + dotCssX;
+      const baseY = (canvasOffset.top - contOffset.top) + dotCssY;
+      let tx = baseX + 12;
+      let ty = baseY - 70;
+      const tooltipW = 180;
+      const tooltipH = 80;
+      if (tx + tooltipW > containerRect.width) tx = baseX - tooltipW - 8;
+      if (tx < 4) tx = 4;
+      if (ty < 4) ty = baseY + 16;
+      if (ty + tooltipH > containerRect.height) ty = containerRect.height - tooltipH - 4;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+      tooltip.classList.add('visible');
+      setTimeout(() => tooltip.classList.remove('visible'), 2500);
+    } else {
+      tooltip.classList.remove('visible');
+    }
+  });
+}
+
+function writeDescription(nx, ny) {
+  let archetype, color, glow, body;
+  if (nx > 0 && ny > 0) {
+    archetype = "The Panic Room"; color = "var(--red)"; glow = "rgba(232,90,48,0.3)";
+    body = "You believe AI disruption is both imminent and massive. You're the one at dinner parties making everyone uncomfortable with timelines. You've probably used the phrase \"we have maybe five years\" unironically. You see the signals everywhere — in every product launch, every benchmark, every layoff announcement. Whether you're right or early, you're certainly not relaxed about it.";
+  } else if (nx <= 0 && ny > 0) {
+    archetype = "The Cassandra"; color = "var(--amber)"; glow = "rgba(232,184,64,0.3)";
+    body = "You see enormous disruption ahead, but you think people are wrong about the timeline — it's coming slower than the hype suggests, which paradoxically makes it more dangerous. Society won't prepare because the wolf arrives in decades, not months. You're the long-view doomer: patient, persistent, and perpetually frustrated that nobody plans past the next quarter.";
+  } else if (nx > 0 && ny <= 0) {
+    archetype = "The Accelerationist"; color = "var(--green)"; glow = "rgba(108,196,74,0.3)";
+    body = "You think AI is advancing fast but that disruption will be manageable — even beneficial. Technology arrives quickly; society adapts; new jobs replace old ones. You've seen this movie before with the internet, with mobile, with every revolution that turned out to be more of an evolution. You're optimistic, possibly annoyingly so, and you think the doomers need to touch grass.";
+  } else {
+    archetype = "The Shrug"; color = "var(--blue)"; glow = "rgba(74,158,196,0.3)";
+    body = "Maximum chill. You think both the timeline and the disruption are overhyped. AI is useful, maybe even interesting, but the breathless predictions of transformation strike you as the same techno-utopianism (or dystopianism) that accompanies every new technology. You'll start worrying when there's something concrete to worry about. Until then, you have other things to think about.";
+  }
+
+  let nearest = null, nearDist = Infinity;
+  figures.forEach(f => {
+    const d = Math.sqrt((nx - f.x)**2 + (ny - f.y)**2);
+    if (d < nearDist) { nearDist = d; nearest = f; }
+  });
+
+  const mag = Math.sqrt(nx*nx + ny*ny);
+  let intensity = "";
+  if (mag < 0.15) intensity = " Your answers place you near dead center — you're genuinely torn, or you could tip into any quadrant on a different day.";
+  else if (mag > 0.7) intensity = " You're deep in this quadrant — a true believer.";
+
+  const xPct = Math.round(nx * 100), yPct = Math.round(ny * 100);
+
+  let nearestHtml = '';
+  if (nearest) {
+    nearestHtml = `
+      <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border);">
+        <div style="font-family:'Share Tech Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ice); opacity:0.55; margin-bottom:0.4rem;">Nearest Famous Figure</div>
+        <div style="font-size:1.15rem; color:${nearest.color}; font-weight:500;">${nearest.name}</div>
+        <div style="font-size:0.95rem; color:var(--text-dim); font-style:italic; margin-top:0.25rem;">"${nearest.quote}"</div>
+      </div>
+    `;
+  }
+
+  document.getElementById('resultDescription').innerHTML = `
+    <div class="result-archetype" style="color:${color}; text-shadow: 0 0 20px ${glow};">${archetype}</div>
+    <div class="result-subtitle">Your AI Doom Archetype</div>
+    <div class="result-text">${body}${intensity}</div>
+    <div class="result-coords">
+      <div>Timeline: <span>${xPct > 0 ? '+' : ''}${xPct}%</span> ${nx > 0 ? '(imminent)' : '(distant)'}</div>
+      <div>Disruption: <span>${yPct > 0 ? '+' : ''}${yPct}%</span> ${ny > 0 ? '(high)' : '(low)'}</div>
+    </div>
+    ${nearestHtml}
+  `;
+}
+
+function startQuiz() {
+  stopPreview();
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('quiz').style.display = 'block';
+  renderQuestion();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function restart() {
+  currentQ = 0;
+  scores = { x: 0, y: 0 };
+  showFigures = false;
+  document.getElementById('toggleTrack').classList.remove('on');
+  document.getElementById('legendPanel').classList.remove('visible');
+  document.getElementById('result').classList.remove('visible');
+  document.getElementById('mainContainer').classList.remove('wide');
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('landing').classList.remove('hidden');
+  startPreview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── ANIMATED PREVIEW COMPASS ── */
+let previewRAF = null;
+let previewRunning = false;
+
+function startPreview() {
+  const canvas = document.getElementById('previewCanvas');
+  if (!canvas) return;
+  previewRunning = true;
+
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width);
+  const pad = 28;
+  const gw = containerW - pad * 2;
+  const canvasH = gw + pad * 2;
+
+  canvas.width = containerW * 2;
+  canvas.height = canvasH * 2;
+  canvas.style.width = containerW + 'px';
+  canvas.style.height = canvasH + 'px';
+
+  const gx = pad, gy = pad;
+  const gcx = gx + gw / 2, gcy = gy + gw / 2;
+
+  // Animation state — random wandering
+  let dotX = 0, dotY = 0;
+  let targetX = 0, targetY = 0;
+  let holdTimer = 0;
+  const holdDuration = 1.2;
+  const speed = 1.8;
+
+  function pickTarget() {
+    targetX = Math.max(-0.85, Math.min(0.85, Math.random() * 1.6 - 0.8));
+    targetY = Math.max(-0.85, Math.min(0.85, Math.random() * 1.6 - 0.8));
+  }
+  pickTarget();
+  dotX = targetX; dotY = targetY;
+  pickTarget();
+
+  let lastTime = performance.now();
+
+  // Trail history
+  const trail = [];
+  const maxTrail = 22;
+
+  function drawFrame(now) {
+    if (!previewRunning) return;
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+
+    // Movement & hold logic
+    const dist = Math.sqrt((targetX - dotX)**2 + (targetY - dotY)**2);
+    if (dist < 0.02) {
+      holdTimer += dt;
+      if (holdTimer > holdDuration) {
+        holdTimer = 0;
+        pickTarget();
+      }
+    } else {
+      const lerpAmt = 1 - Math.pow(0.15, dt * speed);
+      dotX += (targetX - dotX) * lerpAmt;
+      dotY += (targetY - dotY) * lerpAmt;
+    }
+
+    // Record trail
+    trail.push({ x: dotX, y: dotY });
+    if (trail.length > maxTrail) trail.shift();
+
+    // Draw
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.clearRect(0, 0, containerW, canvasH);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(212,168,92,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) {
+      const xp = gx + (gw / 8) * i;
+      const yp = gy + (gw / 8) * i;
+      ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+    }
+
+    // Quadrant fills
+    const a = 0.04;
+    ctx.fillStyle = `rgba(232,184,64,${a})`;  ctx.fillRect(gx, gy, gw/2, gw/2);
+    ctx.fillStyle = `rgba(232,90,48,${a})`;   ctx.fillRect(gcx, gy, gw/2, gw/2);
+    ctx.fillStyle = `rgba(74,158,196,${a})`;  ctx.fillRect(gx, gcy, gw/2, gw/2);
+    ctx.fillStyle = `rgba(108,196,74,${a})`;  ctx.fillRect(gcx, gcy, gw/2, gw/2);
+
+    // Axes
+    ctx.strokeStyle = 'rgba(212,168,92,0.15)';
+    ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+    ctx.strokeStyle = 'rgba(212,168,92,0.08)';
+    ctx.strokeRect(gx, gy, gw, gw);
+
+    // Quadrant labels — compact
+    const lblFont = '600 7px "Share Tech Mono", monospace';
+    ctx.font = lblFont;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(232,184,64,0.5)';
+    ctx.fillText('CASSANDRA', gx + 3, gy + 10);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(232,90,48,0.5)';
+    ctx.fillText('PANIC ROOM', gx + gw - 3, gy + 10);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(74,158,196,0.5)';
+    ctx.fillText('SHRUG', gx + 3, gy + gw - 5);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(108,196,74,0.5)';
+    ctx.fillText('ACCELERATE', gx + gw - 3, gy + gw - 5);
+
+    // Draw all figure dots with names
+    const dotR = 3;
+    const nameFont = '6px "Share Tech Mono", monospace';
+    figures.forEach(f => {
+      const fx = gcx + f.x * (gw/2);
+      const fy = gcy - f.y * (gw/2);
+      // Glow
+      const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, 7);
+      fg.addColorStop(0, f.color + '30');
+      fg.addColorStop(1, f.color + '00');
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.arc(fx, fy, 7, 0, Math.PI*2); ctx.fill();
+      // Dot
+      ctx.fillStyle = f.color + '90';
+      ctx.beginPath(); ctx.arc(fx, fy, dotR, 0, Math.PI*2); ctx.fill();
+      // Name
+      ctx.font = nameFont;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = f.color + '70';
+      ctx.fillText(f.name.split(' ').pop(), fx, fy - 6);
+    });
+
+    // Convert animated dot position to canvas coords
+    const px = gcx + dotX * (gw / 2);
+    const py = gcy - dotY * (gw / 2);
+
+    // Trail
+    if (trail.length > 1) {
+      for (let i = 1; i < trail.length; i++) {
+        const t = trail[i];
+        const prev = trail[i-1];
+        const alpha = (i / trail.length) * 0.2;
+        const tx = gcx + t.x * (gw/2);
+        const ty = gcy - t.y * (gw/2);
+        const prevX = gcx + prev.x * (gw/2);
+        const prevY = gcy - prev.y * (gw/2);
+        ctx.strokeStyle = `rgba(232,114,42,${alpha})`;
+        ctx.lineWidth = 1.5 * (i / trail.length);
+        ctx.beginPath();
+        ctx.moveTo(prevX, prevY);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+      }
+    }
+
+    // Crosshairs
+    ctx.strokeStyle = 'rgba(212,168,92,0.12)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px, gy + gw); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, py); ctx.lineTo(gx + gw, py); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Wandering dot glow
+    const glowR = 18;
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, glowR);
+    grad.addColorStop(0, 'rgba(232,114,42,0.4)');
+    grad.addColorStop(1, 'rgba(232,114,42,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(px, py, glowR, 0, Math.PI*2); ctx.fill();
+
+    // Wandering dot
+    ctx.fillStyle = '#e8722a';
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#0f0d0a';
+    ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI*2); ctx.fill();
+
+    previewRAF = requestAnimationFrame(drawFrame);
+  }
+
+  previewRAF = requestAnimationFrame(drawFrame);
+}
+
+function stopPreview() {
+  previewRunning = false;
+  if (previewRAF) { cancelAnimationFrame(previewRAF); previewRAF = null; }
+}
+
+// Start preview on load
+startPreview();
+</script>
+</body>
+</html>

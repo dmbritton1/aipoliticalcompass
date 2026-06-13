@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Doom Compass — Emberwave</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0d0a;
+    --panel: rgba(22, 19, 16, 0.85);
+    --gold: #d4a85c;
+    --orange: #e8722a;
+    --amber: #e8b840;
+    --red: #e85a30;
+    --ice: #7ab8d4;
+    --green: #6cc44a;
+    --text: #e8dcc8;
+    --text-dim: #7a6844;
+    --orange-glow: rgba(232, 114, 42, 0.45);
+    --gold-glow: rgba(212, 168, 92, 0.4);
+    --ice-glow: rgba(122, 184, 212, 0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+
+  /* ── ATMOSPHERE ── */
+  #emberCanvas {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 0; pointer-events: none;
+  }
+
+  /* amber perspective grid horizon — drawn on #emberCanvas so the mouse can ripple it */
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% -5%, rgba(212,168,92,0.10) 0%, transparent 50%),
+      radial-gradient(ellipse at 88% 25%, rgba(122,184,212,0.06) 0%, transparent 45%),
+      radial-gradient(ellipse at 50% 110%, rgba(232,114,42,0.12) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 2rem;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── GLITCH ── */
+  .glitch { position: relative; display: inline-block; }
+  .glitch::before, .glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+  .glitch::before {
+    color: var(--ice);
+    z-index: -1;
+    animation: glitchA 3.4s infinite steps(1);
+  }
+  .glitch::after {
+    color: var(--orange);
+    z-index: -2;
+    animation: glitchB 2.9s infinite steps(1);
+  }
+  @keyframes glitchA {
+    0%, 91%, 100% { transform: none; clip-path: none; opacity: 0; }
+    92% { transform: translate(-3px, 1px); clip-path: inset(12% 0 60% 0); opacity: 1; }
+    94% { transform: translate(3px, -1px); clip-path: inset(55% 0 18% 0); opacity: 1; }
+    96% { transform: translate(-2px, 0); clip-path: inset(78% 0 4% 0); opacity: 1; }
+    98% { transform: none; opacity: 0; }
+  }
+  @keyframes glitchB {
+    0%, 88%, 100% { transform: none; opacity: 0; }
+    89% { transform: translate(4px, -2px); clip-path: inset(38% 0 38% 0); opacity: 1; }
+    92% { transform: translate(-4px, 2px); clip-path: inset(5% 0 80% 0); opacity: 1; }
+    95% { transform: none; opacity: 0; }
+  }
+
+  /* ── ANGULAR PANELS ── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid rgba(212,168,92,0.3);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+    position: relative;
+    backdrop-filter: blur(4px);
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 60px; height: 2px;
+    background: var(--gold);
+    box-shadow: 0 0 12px var(--gold-glow);
+  }
+  .panel::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 60px; height: 2px;
+    background: var(--orange);
+    box-shadow: 0 0 12px var(--orange-glow);
+  }
+
+  .panel-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding: 0.6rem 1.25rem 0;
+    opacity: 0.85;
+  }
+
+  /* ── LANDING ── */
+  .landing { animation: fadeUp 0.6s ease-out; }
+  .landing.hidden { display: none; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+  .landing-hero { text-align: center; padding: 0.9rem 0 0; }
+
+  .sys-line {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.8rem;
+  }
+  .sys-line .live { color: var(--orange); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+
+  .landing-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1.04;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    margin-bottom: 0.4rem;
+  }
+  .landing-title .doom {
+    color: var(--orange);
+    text-shadow: 0 0 18px var(--orange-glow), 0 0 60px rgba(232,114,42,0.25);
+  }
+
+  .landing-tagline {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--ice);
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px var(--ice-glow);
+    opacity: 0.8;
+    margin-bottom: 1rem;
+  }
+
+  .landing-desc {
+    font-size: 1rem;
+    font-weight: 300;
+    color: var(--text-dim);
+    max-width: 480px;
+    margin: 0 auto 1.1rem;
+    line-height: 1.6;
+  }
+  .landing-desc b { color: var(--text); font-weight: 600; }
+
+  .landing-preview { width: 100%; max-width: min(340px, 28vh); margin: 0 auto 1.1rem; }
+  .preview-canvas { width: 100%; display: block; }
+
+  .meta-row { display: flex; justify-content: center; margin-bottom: 1.1rem; }
+  .meta-item {
+    padding: 0 1.8rem;
+    border-right: 1px solid rgba(212,168,92,0.25);
+    text-align: center;
+  }
+  .meta-item:last-child { border-right: none; }
+  .meta-value {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--gold);
+    text-shadow: 0 0 14px var(--gold-glow);
+  }
+  .meta-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.56rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* ── BUTTONS ── */
+  button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+  .start-btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(100deg, var(--orange) 0%, #b8501c 100%);
+    border: none;
+    padding: 1.05rem 3rem;
+    cursor: pointer;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+    box-shadow: 0 0 26px var(--orange-glow), 0 0 80px rgba(232,114,42,0.15);
+    transition: all 0.2s;
+  }
+  .start-btn:hover {
+    box-shadow: 0 0 40px var(--orange-glow), 0 0 110px rgba(232,114,42,0.3);
+    transform: translateY(-2px);
+  }
+
+  .ghost-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid rgba(212,168,92,0.45);
+    color: var(--gold);
+    padding: 0.95rem 1.5rem;
+    cursor: pointer;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: all 0.2s;
+  }
+  .ghost-btn:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,92,0.08);
+    box-shadow: 0 0 22px rgba(212,168,92,0.25);
+  }
+  .ghost-btn.orange { border-color: rgba(232,114,42,0.5); color: var(--orange); }
+  .ghost-btn.orange:hover {
+    border-color: var(--orange);
+    background: rgba(232,114,42,0.08);
+    box-shadow: 0 0 22px rgba(232,114,42,0.25);
+  }
+
+  /* ── QUIZ ── */
+  .quiz-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(212,168,92,0.2);
+  }
+  .quiz-head-title {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .quiz-head-title .doom { color: var(--orange); text-shadow: 0 0 12px var(--orange-glow); }
+  .quiz-head-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.56rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    opacity: 0.75;
+  }
+
+  .progress-track {
+    height: 6px;
+    background: rgba(122,104,68,0.2);
+    clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+    margin-bottom: 0.45rem;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--ice), var(--gold), var(--orange));
+    box-shadow: 0 0 14px var(--gold-glow);
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.75rem;
+  }
+  .progress-label .pct { color: var(--orange); }
+
+  .question-panel { margin-bottom: 1.5rem; animation: fadeUp 0.3s ease-out; }
+  .question-body { padding: 1.5rem 1.5rem 1.75rem; }
+
+  .question-text {
+    font-size: 1.45rem;
+    font-weight: 300;
+    line-height: 1.45;
+    margin: 0.5rem 0 1.9rem;
+    color: var(--text);
+  }
+
+  .likert-options {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.45rem;
+  }
+  .likert-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 1rem 0.25rem 0.85rem;
+    background: rgba(212,168,92,0.03);
+    border: 1px solid rgba(122,104,68,0.4);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.16s;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .likert-btn:hover {
+    border-color: var(--ice);
+    background: rgba(122,184,212,0.08);
+    box-shadow: 0 0 18px rgba(122,184,212,0.18), inset 0 0 18px rgba(122,184,212,0.05);
+  }
+  .likert-btn:nth-child(4):hover, .likert-btn:nth-child(5):hover {
+    border-color: var(--orange);
+    background: rgba(232,114,42,0.1);
+    box-shadow: 0 0 18px rgba(232,114,42,0.2), inset 0 0 18px rgba(232,114,42,0.06);
+  }
+  .likert-dot {
+    border-radius: 50%;
+    background: rgba(122,104,68,0.6);
+    transition: all 0.16s;
+  }
+  .likert-btn:hover .likert-dot { background: var(--ice); box-shadow: 0 0 10px var(--ice-glow); }
+  .likert-btn:nth-child(4):hover .likert-dot, .likert-btn:nth-child(5):hover .likert-dot {
+    background: var(--orange); box-shadow: 0 0 10px var(--orange-glow);
+  }
+  .likert-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.3;
+    text-align: center;
+    color: var(--text-dim);
+  }
+  .likert-btn:hover .likert-label { color: var(--text); }
+
+  /* ── RESULT ── */
+  .result-screen { display: none; animation: fadeUp 0.5s ease-out; }
+  .result-screen.visible { display: block; }
+
+  .compass-panel { margin-bottom: 1.5rem; }
+  .compass-inner { padding: 1.25rem 1.25rem 1.5rem; }
+  .compass-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .compass-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .toggle-wrap { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; }
+  .toggle-wrap span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.56rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.2s;
+  }
+  .toggle-track {
+    width: 36px; height: 16px;
+    border: 1px solid rgba(122,104,68,0.6);
+    position: relative;
+    transition: all 0.25s;
+    clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  }
+  .toggle-track.on {
+    border-color: var(--orange);
+    background: rgba(232,114,42,0.15);
+    box-shadow: 0 0 10px rgba(232,114,42,0.3);
+  }
+  .toggle-thumb {
+    width: 10px; height: 10px;
+    background: var(--text-dim);
+    position: absolute;
+    top: 2px; left: 3px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .toggle-track.on .toggle-thumb {
+    transform: translateX(19px);
+    background: var(--orange);
+    box-shadow: 0 0 8px var(--orange-glow);
+  }
+
+  .compass-container { position: relative; width: 100%; }
+  .compass-canvas { width: 100%; display: block; }
+
+  .compass-tooltip {
+    position: absolute;
+    background: rgba(18, 14, 10, 0.97);
+    border: 1px solid rgba(212,168,92,0.5);
+    padding: 0.6rem 0.8rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 10;
+    max-width: 230px;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    box-shadow: 0 0 24px rgba(212,168,92,0.2);
+  }
+  .compass-tooltip.visible { opacity: 1; }
+  .tooltip-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .tooltip-role { font-size: 0.82rem; color: var(--text-dim); line-height: 1.3; }
+  .tooltip-quote { font-size: 0.88rem; font-style: italic; color: var(--orange); line-height: 1.35; margin-top: 0.2rem; }
+
+  .legend {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 0.3rem 1rem;
+    padding: 1rem 1.25rem;
+    margin-top: 1rem;
+    border-top: 1px solid rgba(212,168,92,0.2);
+  }
+  .legend.visible { display: grid; }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+  .legend-dot { width: 7px; height: 7px; flex-shrink: 0; transform: rotate(45deg); }
+  .legend-name { font-size: 0.82rem; color: var(--text-dim); letter-spacing: 0.04em; }
+
+  .result-panel { margin-bottom: 1.5rem; }
+  .result-body-inner { padding: 1.6rem 1.6rem 1.8rem; }
+
+  .archetype {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 2.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    margin: 0.4rem 0 0.25rem;
+  }
+  .archetype-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.25rem;
+  }
+  .result-text { font-size: 1.1rem; font-weight: 300; line-height: 1.7; color: var(--text-dim); }
+
+  .coords {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin-top: 1.4rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid rgba(212,168,92,0.2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .coords b { color: var(--gold); font-weight: 700; text-shadow: 0 0 10px var(--gold-glow); }
+
+  .nearest { margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid rgba(212,168,92,0.2); }
+  .nearest-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.4rem;
+  }
+  .nearest-name { font-size: 1.25rem; font-weight: 600; }
+  .nearest-quote { font-size: 1rem; font-style: italic; color: var(--text-dim); margin-top: 0.2rem; }
+
+  .result-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .result-actions button { flex: 1; min-width: 220px; }
+
+  /* ── SHARE CARD ── */
+  #shareCard {
+    position: fixed; left: -9999px; top: 0;
+    width: 640px;
+    background: #0f0d0a;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    padding: 40px 44px;
+    border: 1px solid rgba(212,168,92,0.5);
+  }
+  #shareCard .sc-tag { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold); }
+  #shareCard .sc-title { font-size: 1.9rem; font-weight: 700; text-transform: uppercase; margin: 8px 0 4px; }
+  #shareCard .sc-title .doom { color: var(--orange); }
+  #shareCard .sc-arch { font-size: 2.4rem; font-weight: 700; text-transform: uppercase; margin: 20px 0 4px; }
+  #shareCard .sc-sub { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+  #shareCard .sc-coords { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-top: 12px; }
+  #shareCard .sc-coords b { color: var(--gold); }
+  #shareCard .sc-foot { font-family: 'Share Tech Mono', monospace; font-size: 0.58rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--text-dim); margin-top: 24px; border-top: 1px solid rgba(212,168,92,0.25); padding-top: 14px; }
+  #shareCard canvas { width: 100%; display: block; margin-top: 12px; }
+
+  /* ── AD ── */
+  .ad-unit { margin: 2.5rem 0 0; text-align: center; }
+  .landing .ad-unit { margin: 0 0 1rem; }
+  .ad-label { font-family: 'Share Tech Mono', monospace; font-size: 0.5rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; margin-bottom: 0.4rem; }
+  .ad-slot { border: 1px dashed rgba(212,168,92,0.25); min-height: 90px; display: flex; align-items: center; justify-content: center; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 700px) {
+    .container { padding: 0.75rem 0.9rem 2rem; }
+    .landing-hero { padding: 0.5rem 0 0; }
+    .landing-title { font-size: 2rem; }
+    .landing-desc { font-size: 0.95rem; }
+    .landing-preview { max-width: min(300px, 28vh); }
+    .meta-item { padding: 0 1rem; }
+    .meta-value { font-size: 1.25rem; }
+    .question-text { font-size: 1.18rem; }
+    .question-body { padding: 1.15rem 1rem 1.3rem; }
+    .likert-options { gap: 0.3rem; }
+    .likert-btn { padding: 0.7rem 0.15rem 0.6rem; }
+    .likert-label { font-size: 0.45rem; letter-spacing: 0.04em; }
+    .archetype { font-size: 1.5rem; }
+    .result-text { font-size: 1rem; }
+    .legend { grid-template-columns: 1fr 1fr; }
+    .start-btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="emberCanvas"></canvas>
+
+<div class="container">
+
+  <!-- ── LANDING ── -->
+  <div class="landing" id="landing">
+    <div class="ad-unit">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot" style="display:flex"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="1234567890" data-ad-format="horizontal" data-adtest="on"></ins>
+    </div>
+
+    <div class="landing-hero">
+      <div class="sys-line">DOOM_SYS://v3.0 &nbsp;<span class="live">● LIVE</span></div>
+
+      <h1 class="landing-title">
+        THE AI <span class="glitch doom" data-text="DOOM">DOOM</span><br>COMPASS
+      </h1>
+      <div class="landing-tagline">EXISTENTIAL RISK DIAGNOSTIC</div>
+
+      <p class="landing-desc">Where do you really stand on AI risk? Rate <b>30 statements</b> and the grid will plot your coordinates on the doom compass — then show which famous thinkers share your outlook.</p>
+
+      <div class="landing-preview">
+        <canvas id="previewCanvas" class="preview-canvas"></canvas>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-item"><div class="meta-value">30</div><div class="meta-label">Statements</div></div>
+        <div class="meta-item"><div class="meta-value">04</div><div class="meta-label">Archetypes</div></div>
+        <div class="meta-item"><div class="meta-value">~3</div><div class="meta-label">Minutes</div></div>
+      </div>
+
+      <button class="start-btn" onclick="startQuiz()">▸ Begin Assessment</button>
+    </div>
+  </div>
+
+  <!-- ── QUIZ ── -->
+  <div id="quiz" style="display:none;">
+    <div class="quiz-head">
+      <div class="quiz-head-title">THE AI <span class="doom">DOOM</span> COMPASS</div>
+      <div class="quiz-head-tag">// ASSESSMENT IN PROGRESS</div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label">
+      <span id="progressText">STATEMENT 01 / 30</span>
+      <span class="pct" id="progressPct">0%</span>
+    </div>
+    <div id="questionContainer"></div>
+  </div>
+
+  <!-- ── RESULT ── -->
+  <div class="result-screen" id="result">
+    <div class="quiz-head">
+      <div class="quiz-head-title">THE AI <span class="doom">DOOM</span> COMPASS</div>
+      <div class="quiz-head-tag" style="color:var(--orange)">// ASSESSMENT COMPLETE</div>
+    </div>
+
+    <div class="panel compass-panel">
+      <div class="panel-tag">POSITION_LOCK</div>
+      <div class="compass-inner">
+        <div class="compass-head">
+          <div class="compass-title">Your Coordinates</div>
+          <div class="toggle-wrap" onclick="toggleFigures()">
+            <span>Show Famous Figures</span>
+            <div class="toggle-track" id="toggleTrack"><div class="toggle-thumb"></div></div>
+          </div>
+        </div>
+        <div class="compass-container" id="compassArea">
+          <canvas class="compass-canvas" id="compassCanvas"></canvas>
+          <div class="compass-tooltip" id="tooltip">
+            <div class="tooltip-name" id="tooltipName"></div>
+            <div class="tooltip-role" id="tooltipRole"></div>
+            <div class="tooltip-quote" id="tooltipQuote"></div>
+          </div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+
+    <div class="panel result-panel">
+      <div class="panel-tag">ANALYSIS_OUTPUT</div>
+      <div class="result-body-inner" id="resultDescription"></div>
+    </div>
+
+    <div class="result-actions">
+      <button class="ghost-btn orange" onclick="exportCard()">↓ Export Result Card</button>
+      <button class="ghost-btn" onclick="restart()">↺ Retake Assessment</button>
+    </div>
+
+    <div class="ad-unit">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot" style="display:flex"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="2345678901" data-ad-format="horizontal" data-adtest="on"></ins>
+    </div>
+  </div>
+</div>
+
+<!-- offscreen share card -->
+<div id="shareCard">
+  <div class="sc-tag">DOOM_SYS://v3.0 // RESULT</div>
+  <div class="sc-title">THE AI <span class="doom">DOOM</span> COMPASS</div>
+  <canvas id="shareCanvas"></canvas>
+  <div class="sc-arch" id="scArch"></div>
+  <div class="sc-sub" id="scSub"></div>
+  <div class="sc-coords" id="scCoords"></div>
+  <div class="sc-foot">FIND YOUR OWN COORDINATES → AIDOOMCOMPASS</div>
+</div>
+
+<script src="compass-data.js"></script>
+<script>
+/* ── THEME — original war-room palette in the neon skeleton ── */
+const C = {
+  bg: '#0f0d0a', gold: '#d4a85c', orange: '#e8722a', amber: '#e8b840',
+  red: '#e85a30', ice: '#7ab8d4', green: '#6cc44a', dim: '#7a6844'
+};
+function figureColor(f) {
+  if (f.x > 0 && f.y > 0) return C.red;
+  if (f.x <= 0 && f.y > 0) return C.amber;
+  if (f.x > 0 && f.y <= 0) return C.green;
+  return C.ice;
+}
+const QUAD_COLOR = { panic: C.red, cassandra: C.amber, accel: C.green, shrug: C.ice };
+
+let currentQ = 0, scores = { x: 0, y: 0 };
+let userNx = 0, userNy = 0, showFigures = false, canvasLayout = {};
+
+/* ── ATMOSPHERE: ember particles + rippling perspective grid ── */
+(function atmosphere() {
+  const pc = document.getElementById('emberCanvas');
+  const ctx = pc.getContext('2d');
+  let W, H, horizonY, bottomY, depthGrad, hazeGrad, pts = [];
+
+  const mouse = { x: -9999, y: -9999 };
+  const ripples = [];
+
+  // grid plane projection: world x in grid units, z = depth from viewer
+  const FOCAL = 1.6, PPU = 56;
+  const DEPTH_RANGE = 120, Z_RIPPLE_MAX = 26;
+  const Z_FAR = FOCAL * (1 / 0.02 - 1);   // depth lines run to ~the vanishing point
+
+  // row depths spaced geometrically so the floor stays dense out to the horizon
+  const ROW_Z = [];
+  { let z = 0, dz = 0.45; while (z <= 60) { ROW_Z.push(z); z += dz; dz *= 1.05; } }
+
+  function resize() {
+    W = pc.width = window.innerWidth;
+    H = pc.height = window.innerHeight;
+    horizonY = H * 0.60;
+    bottomY = H * 1.12;            // plane runs past the viewport edge
+    depthGrad = ctx.createLinearGradient(0, bottomY, 0, horizonY);
+    depthGrad.addColorStop(0, 'rgba(232,114,42,0.16)');
+    depthGrad.addColorStop(1, 'rgba(232,114,42,0)');
+    hazeGrad = ctx.createLinearGradient(0, horizonY - 36, 0, horizonY + 60);
+    hazeGrad.addColorStop(0, 'rgba(232,114,42,0)');
+    hazeGrad.addColorStop(0.5, 'rgba(232,150,60,0.045)');
+    hazeGrad.addColorStop(1, 'rgba(232,114,42,0)');
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function scaleAt(z) { return FOCAL / (FOCAL + z); }
+
+  function project(wx, z, now, par) {
+    const s = scaleAt(z);
+    return {
+      x: W / 2 + (wx * PPU - par) * s,
+      y: horizonY + (bottomY - horizonY) * s - rippleHeight(wx, z, now) * s,
+      s
+    };
+  }
+
+  // screen → grid plane (for dropping ripples where the cursor sits)
+  function unproject(mx, my) {
+    const s = (my - horizonY) / (bottomY - horizonY);
+    if (s < 0.07) return null;
+    return { wx: (mx - W / 2) / (PPU * s), wz: FOCAL * (1 / s - 1) };
+  }
+
+  function rippleHeight(wx, z, now) {
+    let h = 0;
+    for (let i = 0; i < ripples.length; i++) {
+      const r = ripples[i];
+      const age = (now - r.t0) / 1000;
+      const d = Math.hypot(wx - r.wx, z - r.wz);
+      const g = d - age * 3.2;     // distance from expanding wavefront
+      h += r.amp * Math.exp(-age * 1.5) * Math.exp(-(g * g) / 0.55) * Math.cos(g * 4.5);
+    }
+    return h;
+  }
+
+  function addRipple(wx, wz, amp) {
+    ripples.push({ wx, wz, amp, t0: performance.now() });
+    if (ripples.length > 24) ripples.shift();
+  }
+
+  let lastSpawn = 0, lastMx = 0, lastMy = 0;
+  window.addEventListener('pointermove', e => {
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    const now = performance.now();
+    const moved = Math.hypot(e.clientX - lastMx, e.clientY - lastMy);
+    if (e.clientY > horizonY + 6 && now - lastSpawn > 90 && moved > 14) {
+      const p = unproject(e.clientX, e.clientY);
+      if (p) {
+        addRipple(p.wx, p.wz, Math.min(6 + moved * 0.12, 13));
+        lastSpawn = now; lastMx = e.clientX; lastMy = e.clientY;
+      }
+    }
+  });
+  window.addEventListener('pointerdown', e => {
+    if (e.clientY > horizonY + 6) {
+      const p = unproject(e.clientX, e.clientY);
+      if (p) addRipple(p.wx, p.wz, 26);
+    }
+  });
+  window.addEventListener('pointerleave', () => { mouse.x = -9999; mouse.y = -9999; });
+
+  // passive swells keep the plane gently moving even when the mouse is idle
+  setInterval(() => {
+    addRipple((Math.random() - 0.5) * 30, 1 + Math.random() * 10, 3.5 + Math.random() * 4.5);
+  }, 3000);
+
+  /* shooting stars — an ember streaking across the sky every so often */
+  const stars = [];
+  function spawnStar() {
+    const fromLeft = Math.random() < 0.5;
+    const speed = (0.55 + Math.random() * 0.35) * W;        // px/s
+    const ang = (10 + Math.random() * 14) * Math.PI / 180;  // shallow descent
+    stars.push({
+      x: fromLeft ? -60 : W + 60,
+      y: H * (0.05 + Math.random() * 0.30),
+      vx: (fromLeft ? 1 : -1) * Math.cos(ang) * speed,
+      vy: Math.sin(ang) * speed,
+      born: performance.now(),
+      life: 1400 + Math.random() * 600,
+      gold: Math.random() < 0.8
+    });
+  }
+  (function scheduleStar() {
+    setTimeout(() => { spawnStar(); scheduleStar(); }, 9000 + Math.random() * 13000);
+  })();
+  window.__emberDebug = { spawnStar, addRipple };
+
+  function drawStars(now) {
+    for (let i = stars.length - 1; i >= 0; i--) {
+      const st = stars[i];
+      const t = (now - st.born) / st.life;
+      if (t >= 1) { stars.splice(i, 1); continue; }
+      const dt = (now - st.born) / 1000;
+      const x = st.x + st.vx * dt, y = st.y + st.vy * dt;
+      const fade = Math.sin(Math.PI * t);          // flare up, then burn out
+      const mag = Math.hypot(st.vx, st.vy);
+      const len = 110 + 60 * fade;
+      const tx = x - (st.vx / mag) * len, ty = y - (st.vy / mag) * len;
+      const col = st.gold ? '212,168,92' : '122,184,212';
+      const grad = ctx.createLinearGradient(x, y, tx, ty);
+      grad.addColorStop(0, `rgba(255,240,210,${0.9 * fade})`);
+      grad.addColorStop(0.25, `rgba(${col},${0.55 * fade})`);
+      grad.addColorStop(1, `rgba(${col},0)`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.fillStyle = `rgba(255,240,210,${0.95 * fade})`;
+      ctx.shadowColor = st.gold ? C.gold : C.ice;
+      ctx.shadowBlur = 14 * fade;
+      ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // bounding box of active ripple influence — lines outside it draw as straight
+  // segments, so the full-screen plane stays cheap when the water is calm
+  function rippleBounds(now) {
+    if (!ripples.length) return null;
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (const r of ripples) {
+      const reach = ((now - r.t0) / 1000) * 3.2 + 1.6;
+      x0 = Math.min(x0, r.wx - reach); x1 = Math.max(x1, r.wx + reach);
+      z0 = Math.min(z0, r.wz - reach); z1 = Math.max(z1, r.wz + reach);
+    }
+    z0 = Math.max(z0, 0); z1 = Math.min(z1, Z_RIPPLE_MAX);
+    if (z1 <= z0) return null;
+    return { x0, x1, z0, z1, step: Math.max(0.35, (x1 - x0) / 220) };
+  }
+
+  function drawGrid(now) {
+    // parallax: plane slides gently opposite the cursor
+    const par = mouse.x > -999 ? (mouse.x / W - 0.5) * 26 : 0;
+    const b = rippleBounds(now);
+    const edge = W / 2 + 60;
+    ctx.lineWidth = 1;
+
+    // depth lines — ember orange rays converging on the vanishing point,
+    // gradient-faded so they dissolve at the horizon
+    ctx.strokeStyle = depthGrad;
+    for (let wx = -DEPTH_RANGE; wx <= DEPTH_RANGE; wx++) {
+      const u = Math.abs(wx * PPU - par);
+      const zStart = u > edge ? FOCAL * (u / edge - 1) : 0;   // clip to screen entry
+      ctx.beginPath();
+      let p = project(wx, zStart, now, par);
+      ctx.moveTo(p.x, p.y);
+      if (b && wx >= b.x0 - 1 && wx <= b.x1 + 1 && b.z1 > zStart) {
+        for (let z = Math.max(zStart, b.z0); z <= b.z1; z += 0.35) {
+          p = project(wx, z, now, par); ctx.lineTo(p.x, p.y);
+        }
+      }
+      p = project(wx, Z_FAR, now, par);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    // cross lines — gold, spanning the full screen width at every depth
+    for (const z of ROW_Z) {
+      const s = scaleAt(z);
+      const a = 0.22 * Math.pow(s, 0.9);
+      if (a < 0.004) break;
+      ctx.strokeStyle = `rgba(212,168,92,${a})`;
+      const wxL = (-edge / s + par) / PPU, wxR = (edge / s + par) / PPU;
+      ctx.beginPath();
+      let p = project(wxL, z, now, par);
+      ctx.moveTo(p.x, p.y);
+      if (b && z >= b.z0 && z <= b.z1) {
+        for (let wx = Math.max(wxL, b.x0); wx <= Math.min(wxR, b.x1); wx += b.step) {
+          p = project(wx, z, now, par); ctx.lineTo(p.x, p.y);
+        }
+      }
+      p = project(wxR, z, now, par);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    // amber haze where the plane meets the horizon
+    ctx.fillStyle = hazeGrad;
+    ctx.fillRect(0, horizonY - 36, W, 96);
+
+    // cull spent ripples
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      if (now - ripples[i].t0 > 2800) ripples.splice(i, 1);
+    }
+  }
+
+  const N = Math.min(70, Math.floor(W / 16));
+  for (let i = 0; i < N; i++) {
+    pts.push({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: -0.1 - Math.random() * 0.35,
+      jx: 0, jy: 0,
+      r: 0.6 + Math.random() * 1.6,
+      c: Math.random() < 0.6 ? C.gold : (Math.random() < 0.7 ? C.orange : C.ice),
+      a: 0.12 + Math.random() * 0.38
+    });
+  }
+
+  function frame(now) {
+    ctx.clearRect(0, 0, W, H);
+    drawGrid(now);
+    drawStars(now);
+    pts.forEach(p => {
+      // embers drift away from the cursor, settling back once it passes
+      const dx = p.x - mouse.x, dy = p.y - mouse.y;
+      const d = Math.hypot(dx, dy);
+      let near = 0;
+      if (d < 150 && d > 0.01) {
+        near = 1 - d / 150;
+        p.jx += (dx / d) * near * 0.45;
+        p.jy += (dy / d) * near * 0.45;
+      }
+      p.jx *= 0.90; p.jy *= 0.90;
+      p.x += p.vx + p.jx; p.y += p.vy + p.jy;
+      if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; }
+      if (p.x < -10) p.x = W + 10;
+      if (p.x > W + 10) p.x = -10;
+      ctx.globalAlpha = Math.min(0.85, p.a + near * 0.3);
+      ctx.fillStyle = p.c;
+      ctx.shadowColor = p.c;
+      ctx.shadowBlur = 6 + near * 7;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* ── PROGRESS ── */
+function renderProgress() {
+  const pct = Math.round((currentQ / QUESTIONS.length) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressText').textContent =
+    `STATEMENT ${String(currentQ + 1).padStart(2, '0')} / ${QUESTIONS.length}`;
+}
+
+/* ── QUESTION ── */
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+  document.getElementById('questionContainer').innerHTML = `
+    <div class="panel question-panel">
+      <div class="panel-tag">STATEMENT_${String(currentQ + 1).padStart(2, '0')} // RATE AGREEMENT</div>
+      <div class="question-body">
+        <div class="question-text">${q.text}</div>
+        <div class="likert-options">
+          ${SCALE.map(s => `
+            <button class="likert-btn" onclick="answer(${s.mult})">
+              <div class="likert-dot" style="width:${s.size}px;height:${s.size}px;"></div>
+              <span class="likert-label">${s.label}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+  renderProgress();
+}
+
+function answer(mult) {
+  const q = QUESTIONS[currentQ];
+  scores.x += q.x * mult;
+  scores.y += q.y * mult;
+  currentQ++;
+  if (currentQ >= QUESTIONS.length) showResult();
+  else renderQuestion();
+}
+
+/* ── RESULT ── */
+function showResult() {
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('result').classList.add('visible');
+
+  let maxX = 0, maxY = 0;
+  QUESTIONS.forEach(q => { maxX += Math.abs(q.x); maxY += Math.abs(q.y); });
+  userNx = Math.max(-1, Math.min(1, scores.x / maxX));
+  userNy = Math.max(-1, Math.min(1, scores.y / maxY));
+
+  drawCompass();
+  writeDescription(userNx, userNy);
+  buildLegend();
+  setupTooltip();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function drawCompass() {
+  const canvas = document.getElementById('compassCanvas');
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width) || 560;
+  const isMobile = containerW < 500;
+  const padSide = isMobile ? 34 : 44;
+  const padTop = isMobile ? 48 : 56;
+  const padBottom = isMobile ? 56 : 60;
+  const gw = containerW - padSide * 2;
+  const canvasH = gw + padTop + padBottom;
+
+  canvas.width = containerW * 2;
+  canvas.height = canvasH * 2;
+  canvas.style.width = containerW + 'px';
+  canvas.style.height = canvasH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+  const gx = padSide, gy = padTop;
+  const gcx = gx + gw / 2, gcy = gy + gw / 2;
+  canvasLayout = { canvasW: containerW, canvasH, gx, gy, gw, gcx, gcy };
+
+  ctx.fillStyle = 'rgba(15, 11, 7, 0.6)';
+  ctx.fillRect(gx, gy, gw, gw);
+
+  ctx.strokeStyle = 'rgba(122,104,68,0.22)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const xp = gx + (gw / 10) * i, yp = gy + (gw / 10) * i;
+    ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+  }
+
+  // quadrant washes — original's exact hues
+  ctx.fillStyle = 'rgba(232,184,64,0.07)'; ctx.fillRect(gx, gy, gw/2, gw/2);
+  ctx.fillStyle = 'rgba(232,90,48,0.08)';  ctx.fillRect(gcx, gy, gw/2, gw/2);
+  ctx.fillStyle = 'rgba(122,184,212,0.06)';ctx.fillRect(gx, gcy, gw/2, gw/2);
+  ctx.fillStyle = 'rgba(108,196,74,0.07)'; ctx.fillRect(gcx, gcy, gw/2, gw/2);
+
+  // neon-glow axes — ember horizontal, ice vertical
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = C.orange;
+  ctx.strokeStyle = 'rgba(232,114,42,0.6)';
+  ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+  ctx.shadowColor = C.ice;
+  ctx.strokeStyle = 'rgba(122,184,212,0.6)';
+  ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(212,168,92,0.3)';
+  ctx.strokeRect(gx, gy, gw, gw);
+
+  const titleFont = (isMobile ? '700 9px' : '700 10px') + ' "IBM Plex Sans", sans-serif';
+  const subFont = (isMobile ? '7px' : '8px') + ' "Share Tech Mono", monospace';
+  const axisFont = (isMobile ? '7px' : '8px') + ' "Share Tech Mono", monospace';
+  const figureFont = (isMobile ? '6.5px' : '7px') + ' "Share Tech Mono", monospace';
+
+  ctx.textAlign = 'left'; ctx.font = titleFont;
+  ctx.fillStyle = C.amber;
+  ctx.fillText('THE CASSANDRA', gx, gy - (isMobile ? 26 : 30));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(232,184,64,0.55)';
+  ctx.fillText('SLOW COLLAPSE · TOTAL UPHEAVAL', gx, gy - (isMobile ? 14 : 17));
+
+  ctx.textAlign = 'right'; ctx.font = titleFont;
+  ctx.fillStyle = C.red;
+  ctx.fillText('THE PANIC ROOM', gx + gw, gy - (isMobile ? 26 : 30));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(232,90,48,0.6)';
+  ctx.fillText('COMING FAST & FOR EVERYTHING', gx + gw, gy - (isMobile ? 14 : 17));
+
+  ctx.textAlign = 'left'; ctx.font = titleFont;
+  ctx.fillStyle = C.ice;
+  ctx.fillText('THE SHRUG', gx, gy + gw + (isMobile ? 18 : 20));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(122,184,212,0.6)';
+  ctx.fillText('DISTANT FUTURE · MANAGEABLE BUMPS', gx, gy + gw + (isMobile ? 30 : 33));
+
+  ctx.textAlign = 'right'; ctx.font = titleFont;
+  ctx.fillStyle = C.green;
+  ctx.fillText('THE ACCELERATIONIST', gx + gw, gy + gw + (isMobile ? 18 : 20));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(108,196,74,0.6)';
+  ctx.fillText("COMING SOON · WE'LL ADAPT", gx + gw, gy + gw + (isMobile ? 30 : 33));
+
+  ctx.fillStyle = 'rgba(122,104,68,0.9)';
+  ctx.font = axisFont; ctx.textAlign = 'center';
+  ctx.fillText('◂ DISTANT', gx + gw * 0.15, gy + gw + (isMobile ? 46 : 52));
+  ctx.fillText('IMMINENT ▸', gx + gw * 0.85, gy + gw + (isMobile ? 46 : 52));
+  ctx.save(); ctx.translate(gx - (isMobile ? 16 : 20), gy + gw * 0.16); ctx.rotate(-Math.PI/2);
+  ctx.fillText('◂ UPHEAVAL', 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(gx - (isMobile ? 16 : 20), gy + gw * 0.85); ctx.rotate(-Math.PI/2);
+  ctx.fillText('BUMPS ▸', 0, 0); ctx.restore();
+
+  // figures — diamond markers (neon DNA)
+  if (showFigures) {
+    const r = isMobile ? 3.4 : 4.2;
+    ctx.font = figureFont;
+    const placed = [];   // label boxes already drawn, for collision nudging
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const col = figureColor(f);
+      ctx.shadowColor = col; ctx.shadowBlur = 10;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(fx, fy - r); ctx.lineTo(fx + r, fy); ctx.lineTo(fx, fy + r); ctx.lineTo(fx - r, fy);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      const label = f.name.split(' ').pop().toUpperCase();
+      const w = ctx.measureText(label).width;
+      const up = isMobile ? 7 : 9, down = isMobile ? 13 : 15, step = 9;
+      const slots = [fy - up, fy + down, fy - up - step, fy + down + step, fy - up - step * 2];
+      let ly = Math.max(slots[0], gy + 9);
+      for (const s of slots) {
+        const yy = Math.min(Math.max(s, gy + 9), gy + gw - 4);
+        if (!placed.some(p => Math.abs(p.x - fx) < (p.w + w) / 2 + 5 && Math.abs(p.y - yy) < 8)) {
+          ly = yy; break;
+        }
+      }
+      placed.push({ x: fx, y: ly, w });
+      ctx.textAlign = 'center';
+      ctx.fillStyle = col;
+      ctx.fillText(label, fx, ly);
+    });
+  }
+
+  // user — gold core with ember/ice RGB-split rings
+  const px = gcx + userNx * (gw/2), py = gcy - userNy * (gw/2);
+
+  ctx.setLineDash([4, 5]);
+  ctx.strokeStyle = 'rgba(212,168,92,0.4)';
+  ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px, gy + gw); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx, py); ctx.lineTo(gx + gw, py); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(232,114,42,0.75)';
+  ctx.beginPath(); ctx.arc(px - 1.5, py, 11, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(122,184,212,0.75)';
+  ctx.beginPath(); ctx.arc(px + 1.5, py, 11, 0, Math.PI*2); ctx.stroke();
+
+  const grad = ctx.createRadialGradient(px, py, 0, px, py, 28);
+  grad.addColorStop(0, 'rgba(212,168,92,0.45)');
+  grad.addColorStop(1, 'rgba(212,168,92,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(px, py, 28, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = C.gold;
+  ctx.shadowColor = C.gold; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = C.bg;
+  ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI*2); ctx.fill();
+
+  ctx.font = (isMobile ? '700 8px' : '700 9px') + ' "IBM Plex Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.gold;
+  ctx.fillText('YOU', px, py - (isMobile ? 15 : 18));
+}
+
+function toggleFigures() {
+  showFigures = !showFigures;
+  document.getElementById('toggleTrack').classList.toggle('on', showFigures);
+  document.getElementById('legend').classList.toggle('visible', showFigures);
+  drawCompass();
+}
+
+function buildLegend() {
+  document.getElementById('legend').innerHTML = FIGURES.map(f => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${figureColor(f)};box-shadow:0 0 6px ${figureColor(f)};"></div>
+      <span class="legend-name">${f.name}</span>
+    </div>
+  `).join('');
+}
+
+function setupTooltip() {
+  const area = document.getElementById('compassArea');
+  const canvas = document.getElementById('compassCanvas');
+  const tooltip = document.getElementById('tooltip');
+
+  function hitTest(clientX, clientY, radius) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (clientX - rect.left) * (canvasLayout.canvasW / rect.width);
+    const my = (clientY - rect.top) * (canvasLayout.canvasH / rect.height);
+    const { gcx, gcy, gw } = canvasLayout;
+    let hit = null, minDist = radius;
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const d = Math.hypot(mx - fx, my - fy);
+      if (d < minDist) { minDist = d; hit = f; }
+    });
+    return hit;
+  }
+
+  function showTip(hit, clientX, clientY) {
+    document.getElementById('tooltipName').textContent = hit.name;
+    document.getElementById('tooltipRole').textContent = hit.role;
+    document.getElementById('tooltipQuote').textContent = `"${hit.quote}"`;
+    const cr = area.getBoundingClientRect();
+    let tx = clientX - cr.left + 16, ty = clientY - cr.top - 10;
+    if (tx + 240 > cr.width) tx = clientX - cr.left - 240;
+    if (ty + 100 > cr.height) ty = clientY - cr.top - 90;
+    if (ty < 0) ty = 5;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+    tooltip.classList.add('visible');
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    if (!showFigures) { tooltip.classList.remove('visible'); return; }
+    const hit = hitTest(e.clientX, e.clientY, 18);
+    if (hit) showTip(hit, e.clientX, e.clientY);
+    else tooltip.classList.remove('visible');
+  });
+  canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+  canvas.addEventListener('touchstart', e => {
+    if (!showFigures) return;
+    const t = e.touches[0];
+    const hit = hitTest(t.clientX, t.clientY, 30);
+    if (hit) { showTip(hit, t.clientX, t.clientY); setTimeout(() => tooltip.classList.remove('visible'), 2500); }
+    else tooltip.classList.remove('visible');
+  });
+}
+
+function writeDescription(nx, ny) {
+  const key = quadrantKey(nx, ny);
+  const arch = ARCHETYPES[key];
+  const color = QUAD_COLOR[key];
+  const nearest = nearestFigure(nx, ny);
+  const xPct = Math.round(nx * 100), yPct = Math.round(ny * 100);
+
+  document.getElementById('resultDescription').innerHTML = `
+    <div class="archetype glitch" data-text="${arch.name.toUpperCase()}" style="color:${color}; text-shadow: 0 0 22px ${color};">${arch.name.toUpperCase()}</div>
+    <div class="archetype-sub">${arch.sub} // your AI doom archetype</div>
+    <div class="result-text">${arch.body}${intensityNote(nx, ny)}</div>
+    <div class="coords">
+      <div>TIMELINE <b>${xPct > 0 ? '+' : ''}${xPct}%</b> ${nx > 0 ? 'IMMINENT' : 'DISTANT'}</div>
+      <div>DISRUPTION <b>${yPct > 0 ? '+' : ''}${yPct}%</b> ${ny > 0 ? 'HIGH' : 'LOW'}</div>
+    </div>
+    ${nearest ? `
+    <div class="nearest">
+      <div class="nearest-label">Nearest Famous Figure</div>
+      <div class="nearest-name" style="color:${figureColor(nearest)}">${nearest.name}</div>
+      <div class="nearest-quote">"${nearest.quote}"</div>
+    </div>` : ''}
+  `;
+}
+
+/* ── SHARE CARD ── */
+function exportCard() {
+  const key = quadrantKey(userNx, userNy);
+  const arch = ARCHETYPES[key];
+  document.getElementById('scArch').textContent = arch.name.toUpperCase();
+  document.getElementById('scArch').style.color = QUAD_COLOR[key];
+  document.getElementById('scSub').textContent = arch.sub + ' // AI DOOM ARCHETYPE';
+  const xPct = Math.round(userNx * 100), yPct = Math.round(userNy * 100);
+  document.getElementById('scCoords').innerHTML =
+    `TIMELINE <b>${xPct > 0 ? '+' : ''}${xPct}%</b> &nbsp;·&nbsp; DISRUPTION <b>${yPct > 0 ? '+' : ''}${yPct}%</b>`;
+
+  const src = document.getElementById('compassCanvas');
+  const dst = document.getElementById('shareCanvas');
+  dst.width = src.width; dst.height = src.height;
+  const dctx = dst.getContext('2d');
+  dctx.fillStyle = '#0f0d0a';
+  dctx.fillRect(0, 0, dst.width, dst.height);
+  dctx.drawImage(src, 0, 0);
+
+  html2canvas(document.getElementById('shareCard'), {
+    backgroundColor: '#0f0d0a', scale: 2
+  }).then(card => {
+    const a = document.createElement('a');
+    a.download = 'ai-doom-compass-result.png';
+    a.href = card.toDataURL('image/png');
+    a.click();
+  });
+}
+
+/* ── FLOW ── */
+function startQuiz() {
+  stopPreview();
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('quiz').style.display = 'block';
+  renderQuestion();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function restart() {
+  currentQ = 0; scores = { x: 0, y: 0 }; showFigures = false;
+  document.getElementById('toggleTrack').classList.remove('on');
+  document.getElementById('legend').classList.remove('visible');
+  document.getElementById('result').classList.remove('visible');
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('landing').classList.remove('hidden');
+  startPreview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── LANDING PREVIEW ── */
+let previewRAF = null, previewRunning = false;
+function startPreview() {
+  const canvas = document.getElementById('previewCanvas');
+  if (!canvas) return;
+  previewRunning = true;
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width) || 320;
+  const pad = 18;
+  const gw = containerW - pad * 2;
+  const canvasH = gw + pad * 2;
+  canvas.width = containerW * 2; canvas.height = canvasH * 2;
+  canvas.style.width = containerW + 'px'; canvas.style.height = canvasH + 'px';
+  const gx = pad, gy = pad, gcx = gx + gw/2, gcy = gy + gw/2;
+
+  let dotX = 0.3, dotY = 0.3, targetX = 0.3, targetY = 0.3, holdTimer = 0;
+  const trail = [];
+  function pickTarget() {
+    targetX = Math.random() * 1.6 - 0.8;
+    targetY = Math.random() * 1.6 - 0.8;
+  }
+  pickTarget();
+  let lastTime = performance.now();
+
+  function drawFrame(now) {
+    if (!previewRunning) return;
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+
+    const dist = Math.hypot(targetX - dotX, targetY - dotY);
+    if (dist < 0.02) {
+      holdTimer += dt;
+      if (holdTimer > 1.1) { holdTimer = 0; pickTarget(); }
+    } else {
+      const lerp = 1 - Math.pow(0.15, dt * 1.8);
+      dotX += (targetX - dotX) * lerp;
+      dotY += (targetY - dotY) * lerp;
+    }
+    trail.push({ x: dotX, y: dotY });
+    if (trail.length > 26) trail.shift();
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.clearRect(0, 0, containerW, canvasH);
+
+    ctx.strokeStyle = 'rgba(122,104,68,0.2)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) {
+      const xp = gx + (gw/8) * i, yp = gy + (gw/8) * i;
+      ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+    }
+
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = C.orange;
+    ctx.strokeStyle = 'rgba(232,114,42,0.5)';
+    ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+    ctx.shadowColor = C.ice;
+    ctx.strokeStyle = 'rgba(122,184,212,0.5)';
+    ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(212,168,92,0.25)';
+    ctx.strokeRect(gx, gy, gw, gw);
+
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const col = figureColor(f);
+      ctx.fillStyle = col + '90';
+      ctx.beginPath();
+      ctx.moveTo(fx, fy - 2.6); ctx.lineTo(fx + 2.6, fy); ctx.lineTo(fx, fy + 2.6); ctx.lineTo(fx - 2.6, fy);
+      ctx.closePath(); ctx.fill();
+    });
+
+    for (let i = 1; i < trail.length; i++) {
+      const a = (i / trail.length) * 0.5;
+      const t = trail[i], p = trail[i-1];
+      ctx.strokeStyle = `rgba(212,168,92,${a})`;
+      ctx.lineWidth = 1.5 * (i / trail.length);
+      ctx.beginPath();
+      ctx.moveTo(gcx + p.x * (gw/2), gcy - p.y * (gw/2));
+      ctx.lineTo(gcx + t.x * (gw/2), gcy - t.y * (gw/2));
+      ctx.stroke();
+    }
+
+    const px = gcx + dotX * (gw/2), py = gcy - dotY * (gw/2);
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, 16);
+    grad.addColorStop(0, 'rgba(212,168,92,0.5)');
+    grad.addColorStop(1, 'rgba(212,168,92,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = C.gold;
+    ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI*2); ctx.fill();
+
+    ctx.font = '700 7px "IBM Plex Sans", sans-serif';
+    ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(232,184,64,0.8)';
+    ctx.fillText('CASSANDRA', gx + 5, gy + 12);
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(232,90,48,0.8)';
+    ctx.fillText('PANIC ROOM', gx + gw - 5, gy + 12);
+    ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(122,184,212,0.8)';
+    ctx.fillText('SHRUG', gx + 5, gy + gw - 7);
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(108,196,74,0.8)';
+    ctx.fillText('ACCELERATE', gx + gw - 5, gy + gw - 7);
+
+    previewRAF = requestAnimationFrame(drawFrame);
+  }
+  previewRAF = requestAnimationFrame(drawFrame);
+}
+function stopPreview() {
+  previewRunning = false;
+  if (previewRAF) { cancelAnimationFrame(previewRAF); previewRAF = null; }
+}
+startPreview();
+</script>
+</body>
+</html>

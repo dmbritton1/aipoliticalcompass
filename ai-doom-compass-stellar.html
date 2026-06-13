@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Doom Compass — Celestial Atlas</title>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Jost:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --space: #050811;
+    --deep: #0a1020;
+    --gold: #e3c87e;
+    --gold-dim: rgba(227,200,126,0.45);
+    --gold-faint: rgba(227,200,126,0.16);
+    --ice: #9fb8d8;
+    --text: #dfe6f2;
+    --text-dim: #7484a0;
+    --rose: #d88a8a;
+    --sage: #93b89a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--space);
+    color: var(--text);
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: 17px;
+    line-height: 1.6;
+  }
+
+  #starCanvas {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* nebula washes */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 55% 40% at 75% 12%, rgba(60,80,140,0.16) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 45% at 15% 75%, rgba(120,70,90,0.10) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 30% at 50% 45%, rgba(227,200,126,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4.5rem;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── ORNAMENT ── */
+  .orn-rule {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    color: var(--gold);
+    margin: 1.6rem 0;
+  }
+  .orn-rule::before, .orn-rule::after {
+    content: '';
+    width: 90px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim));
+  }
+  .orn-rule::after { background: linear-gradient(90deg, var(--gold-dim), transparent); }
+  .orn-rule .star { font-size: 0.8rem; letter-spacing: 0.6em; opacity: 0.8; }
+
+  /* ── TYPE ── */
+  .observatory-line {
+    font-family: 'Jost', sans-serif;
+    font-weight: 400;
+    font-size: 0.66rem;
+    letter-spacing: 0.55em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-align: center;
+    opacity: 0.85;
+  }
+
+  h1.atlas-title {
+    font-family: 'Marcellus', serif;
+    font-size: 3.2rem;
+    line-height: 1.12;
+    text-align: center;
+    letter-spacing: 0.04em;
+    margin: 1rem 0 0.4rem;
+    font-weight: 400;
+  }
+  h1.atlas-title .doom {
+    color: var(--gold);
+    text-shadow: 0 0 35px rgba(227,200,126,0.35);
+  }
+
+  .atlas-sub {
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.45em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: center;
+  }
+
+  .lede {
+    font-size: 1.18rem;
+    text-align: center;
+    color: var(--text-dim);
+    max-width: 500px;
+    margin: 1.6rem auto 0;
+    line-height: 1.75;
+  }
+  .lede em { color: var(--text); font-style: italic; font-weight: 400; }
+
+  /* ── LANDING ── */
+  .landing { animation: drift 1s ease-out; }
+  .landing.hidden { display: none; }
+  @keyframes drift { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  .landing-preview {
+    width: 100%;
+    max-width: 420px;
+    margin: 2rem auto;
+  }
+  .preview-canvas { width: 100%; display: block; }
+
+  .meta-row {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin: 0 0 2.4rem;
+    flex-wrap: wrap;
+  }
+  .meta-item { text-align: center; }
+  .meta-value {
+    font-family: 'Marcellus', serif;
+    font-size: 1.8rem;
+    color: var(--gold);
+  }
+  .meta-label {
+    font-size: 0.6rem;
+    font-weight: 400;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* ── BUTTONS ── */
+  button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; font-family: 'Jost', sans-serif; }
+
+  .start-btn {
+    display: block;
+    margin: 0 auto;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--space);
+    background: linear-gradient(180deg, #f0dca4, var(--gold));
+    border: none;
+    border-radius: 100px;
+    padding: 1.05rem 3.4rem 1.05rem 3.7rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 0 30px rgba(227,200,126,0.25), 0 0 90px rgba(227,200,126,0.08);
+  }
+  .start-btn:hover {
+    box-shadow: 0 0 45px rgba(227,200,126,0.45), 0 0 120px rgba(227,200,126,0.15);
+    transform: translateY(-2px);
+  }
+
+  .ghost-btn {
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid rgba(116,132,160,0.35);
+    border-radius: 100px;
+    padding: 0.95rem 1.6rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .ghost-btn:hover { color: var(--text); border-color: var(--text-dim); }
+  .ghost-btn.gold { color: var(--gold); border-color: var(--gold-dim); }
+  .ghost-btn.gold:hover {
+    border-color: var(--gold);
+    box-shadow: 0 0 28px rgba(227,200,126,0.18);
+  }
+
+  /* ── QUIZ ── */
+  #quiz { display: none; }
+
+  .quiz-head { text-align: center; margin-bottom: 1.6rem; }
+  .quiz-head-title {
+    font-family: 'Marcellus', serif;
+    font-size: 1.35rem;
+    letter-spacing: 0.05em;
+  }
+  .quiz-head-title .doom { color: var(--gold); }
+
+  /* progress — moon phases arc */
+  .progress-wrap { text-align: center; margin-bottom: 2.2rem; }
+  .progress-orbit {
+    position: relative;
+    height: 4px;
+    max-width: 440px;
+    margin: 0 auto 0.8rem;
+    background: rgba(116,132,160,0.18);
+    border-radius: 2px;
+  }
+  .progress-orbit-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    border-radius: 2px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 12px rgba(227,200,126,0.5);
+  }
+  .progress-orbit-moon {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 14px; height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f4e7be, var(--gold));
+    box-shadow: 0 0 16px rgba(227,200,126,0.7);
+    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .progress-label {
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .obs-card {
+    border: 1px solid rgba(227,200,126,0.2);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(10,16,32,0.85), rgba(5,8,17,0.85));
+    padding: 2.2rem 2rem 2rem;
+    position: relative;
+    animation: drift 0.5s ease-out;
+  }
+  .obs-card::before {
+    content: '✦';
+    position: absolute;
+    top: -0.65rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--space);
+    color: var(--gold);
+    padding: 0 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  .obs-label {
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 1.2rem;
+    opacity: 0.85;
+  }
+
+  .obs-text {
+    font-family: 'Marcellus', serif;
+    font-size: 1.5rem;
+    line-height: 1.5;
+    text-align: center;
+    margin-bottom: 2.1rem;
+  }
+
+  .likert-options {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+  }
+  .likert-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1.05rem 0.25rem 0.9rem;
+    background: transparent;
+    border: 1px solid rgba(116,132,160,0.25);
+    border-radius: 3px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .likert-btn:hover {
+    border-color: var(--gold-dim);
+    background: rgba(227,200,126,0.05);
+    box-shadow: 0 0 24px rgba(227,200,126,0.1);
+    transform: translateY(-2px);
+  }
+  .likert-phase {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--text-dim);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+  .likert-phase::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--text-dim);
+    transition: all 0.3s;
+  }
+  /* moon phases: new → crescent → half → gibbous → full */
+  .likert-btn:nth-child(1) .likert-phase::after { transform: translateX(-100%); }
+  .likert-btn:nth-child(2) .likert-phase::after { transform: translateX(-72%); }
+  .likert-btn:nth-child(3) .likert-phase::after { transform: translateX(-50%); }
+  .likert-btn:nth-child(4) .likert-phase::after { transform: translateX(-28%); }
+  .likert-btn:nth-child(5) .likert-phase::after { transform: translateX(0); }
+  .likert-btn:hover .likert-phase { border-color: var(--gold); box-shadow: 0 0 10px rgba(227,200,126,0.5); }
+  .likert-btn:hover .likert-phase::after { background: var(--gold); }
+  .likert-label {
+    font-size: 0.58rem;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    line-height: 1.45;
+    text-align: center;
+    color: var(--text-dim);
+  }
+  .likert-btn:hover .likert-label { color: var(--gold); }
+
+  /* ── RESULT ── */
+  .result-screen { display: none; animation: drift 0.8s ease-out; }
+  .result-screen.visible { display: block; }
+
+  .chart-card {
+    border: 1px solid rgba(227,200,126,0.2);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(10,16,32,0.85), rgba(5,8,17,0.85));
+    padding: 1.6rem 1.5rem 1.7rem;
+    margin-bottom: 1.6rem;
+  }
+
+  .chart-head {
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 1.1rem;
+    opacity: 0.85;
+  }
+
+  .compass-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.9rem;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .compass-title {
+    font-size: 0.6rem;
+    font-weight: 400;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .toggle-wrap {
+    display: flex; align-items: center; gap: 0.6rem;
+    cursor: pointer; user-select: none;
+    font-size: 0.6rem;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.3s;
+  }
+  .toggle-wrap.on { color: var(--gold); }
+  .toggle-orb {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--text-dim);
+    transition: all 0.3s;
+  }
+  .toggle-wrap.on .toggle-orb {
+    background: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(227,200,126,0.8);
+  }
+
+  .compass-container { position: relative; width: 100%; }
+  .compass-canvas { width: 100%; display: block; }
+
+  .compass-tooltip {
+    position: absolute;
+    background: rgba(7, 11, 24, 0.97);
+    border: 1px solid var(--gold-dim);
+    border-radius: 3px;
+    padding: 0.7rem 0.9rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 10;
+    max-width: 240px;
+    box-shadow: 0 8px 35px rgba(0,0,0,0.7);
+  }
+  .compass-tooltip.visible { opacity: 1; }
+  .tooltip-name { font-family: 'Marcellus', serif; font-size: 0.92rem; color: var(--gold); letter-spacing: 0.04em; }
+  .tooltip-role { font-size: 0.74rem; color: var(--text-dim); line-height: 1.35; }
+  .tooltip-quote { font-size: 0.84rem; font-style: italic; color: var(--ice); line-height: 1.4; margin-top: 0.25rem; }
+
+  .legend {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.3rem 1.1rem;
+    padding-top: 1.1rem;
+    margin-top: 1.1rem;
+    border-top: 1px solid rgba(227,200,126,0.14);
+  }
+  .legend.visible { display: grid; }
+  .legend-item { display: flex; align-items: center; gap: 0.55rem; }
+  .legend-star { color: var(--gold); font-size: 0.7rem; flex-shrink: 0; }
+  .legend-name { font-size: 0.8rem; color: var(--text-dim); letter-spacing: 0.03em; }
+
+  /* reading */
+  .reading-head {
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 1rem;
+    opacity: 0.85;
+  }
+  .archetype {
+    font-family: 'Marcellus', serif;
+    font-size: 2.5rem;
+    line-height: 1.15;
+    text-align: center;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.3rem;
+  }
+  .archetype-sub {
+    font-size: 0.62rem;
+    font-weight: 400;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .result-text {
+    font-size: 1.08rem;
+    line-height: 1.85;
+    color: var(--text-dim);
+    text-align: center;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .coords {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    flex-wrap: wrap;
+    margin-top: 1.7rem;
+    padding-top: 1.3rem;
+    border-top: 1px solid rgba(227,200,126,0.14);
+  }
+  .coord-item { text-align: center; }
+  .coord-k {
+    font-size: 0.58rem;
+    font-weight: 400;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .coord-v { font-family: 'Marcellus', serif; font-size: 1.6rem; color: var(--gold); }
+  .coord-note { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); }
+
+  .nearest { margin-top: 1.6rem; text-align: center; }
+  .nearest-label {
+    font-size: 0.58rem;
+    font-weight: 400;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.45rem;
+  }
+  .nearest-name { font-family: 'Marcellus', serif; font-size: 1.4rem; letter-spacing: 0.04em; }
+  .nearest-quote { font-size: 1rem; font-style: italic; color: var(--text-dim); margin-top: 0.2rem; }
+
+  .result-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.8rem; }
+  .result-actions button { flex: 1; min-width: 215px; }
+
+  /* ── SHARE CARD ── */
+  #shareCard {
+    position: fixed; left: -9999px; top: 0;
+    width: 640px;
+    background: #050811;
+    color: var(--text);
+    font-family: 'Jost', sans-serif;
+    padding: 42px 46px;
+    border: 1px solid rgba(227,200,126,0.4);
+  }
+  #shareCard .sc-tag { font-size: 0.62rem; letter-spacing: 0.5em; text-transform: uppercase; color: var(--gold); text-align: center; }
+  #shareCard .sc-title { font-family: 'Marcellus', serif; font-size: 1.9rem; text-align: center; margin: 8px 0 14px; letter-spacing: 0.04em; }
+  #shareCard .sc-title .doom { color: var(--gold); }
+  #shareCard .sc-arch { font-family: 'Marcellus', serif; font-size: 2.2rem; text-align: center; margin: 18px 0 4px; }
+  #shareCard .sc-sub { font-size: 0.6rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--text-dim); text-align: center; margin-bottom: 12px; }
+  #shareCard .sc-coords { font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); text-align: center; margin-top: 10px; }
+  #shareCard .sc-coords b { color: var(--gold); font-weight: 500; }
+  #shareCard .sc-foot { font-size: 0.58rem; letter-spacing: 0.35em; text-transform: uppercase; color: var(--text-dim); text-align: center; margin-top: 22px; border-top: 1px solid rgba(227,200,126,0.2); padding-top: 14px; }
+  #shareCard canvas { width: 100%; display: block; margin-top: 10px; }
+
+  /* ── AD ── */
+  .ad-unit { margin: 2.5rem 0 0; text-align: center; }
+  .ad-label { font-size: 0.52rem; letter-spacing: 0.45em; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; margin-bottom: 0.4rem; }
+  .ad-slot { border: 1px solid rgba(227,200,126,0.12); border-radius: 4px; min-height: 90px; display: flex; align-items: center; justify-content: center; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 700px) {
+    .container { padding: 1.6rem 1rem 3rem; }
+    h1.atlas-title { font-size: 2.1rem; }
+    .lede { font-size: 1.02rem; }
+    .landing-preview { max-width: 320px; }
+    .obs-card { padding: 1.7rem 1.1rem 1.5rem; }
+    .obs-text { font-size: 1.18rem; }
+    .likert-options { gap: 0.3rem; }
+    .likert-btn { padding: 0.75rem 0.15rem 0.65rem; }
+    .likert-label { font-size: 0.46rem; letter-spacing: 0.08em; }
+    .archetype { font-size: 1.7rem; }
+    .result-text { font-size: 0.98rem; }
+    .legend { grid-template-columns: 1fr 1fr; }
+    .meta-row { gap: 1.8rem; }
+    .coords { gap: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="starCanvas"></canvas>
+
+<div class="container">
+
+  <!-- ── LANDING ── -->
+  <div class="landing" id="landing">
+    <div style="padding-top:1.6rem"></div>
+    <div class="observatory-line">The Observatory of Final Things</div>
+    <h1 class="atlas-title">The AI <span class="doom">Doom</span> Compass</h1>
+    <div class="atlas-sub">A Celestial Atlas of Opinion</div>
+
+    <div class="orn-rule"><span class="star">✦ ✧ ✦</span></div>
+
+    <p class="lede">Every mind in the AI debate is a fixed star. Rate <em>thirty propositions</em> and we will chart your position in the firmament — your constellation, your house of doom, and the luminaries that burn nearest to you.</p>
+
+    <div class="landing-preview">
+      <canvas id="previewCanvas" class="preview-canvas"></canvas>
+    </div>
+
+    <div class="meta-row">
+      <div class="meta-item"><div class="meta-value">30</div><div class="meta-label">Propositions</div></div>
+      <div class="meta-item"><div class="meta-value">4</div><div class="meta-label">Houses</div></div>
+      <div class="meta-item"><div class="meta-value">3′</div><div class="meta-label">Of Your Time</div></div>
+    </div>
+
+    <button class="start-btn" onclick="startQuiz()">Begin the Charting</button>
+
+    <div class="ad-unit">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot" style="display:flex"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="1234567890" data-ad-format="horizontal" data-adtest="on"></ins>
+    </div>
+  </div>
+
+  <!-- ── QUIZ ── -->
+  <div id="quiz">
+    <div class="quiz-head">
+      <div class="quiz-head-title">The AI <span class="doom">Doom</span> Compass</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-orbit">
+        <div class="progress-orbit-fill" id="orbitFill"></div>
+        <div class="progress-orbit-moon" id="orbitMoon"></div>
+      </div>
+      <div class="progress-label" id="progressText"></div>
+    </div>
+    <div id="questionContainer"></div>
+  </div>
+
+  <!-- ── RESULT ── -->
+  <div class="result-screen" id="result">
+    <div class="orn-rule"><span class="star">✦ ✧ ✦</span></div>
+
+    <div class="chart-card">
+      <div class="chart-head">Star Chart — Plate XXX</div>
+      <div class="compass-head">
+        <div class="compass-title">Your position in the firmament</div>
+        <div class="toggle-wrap" id="figToggle" onclick="toggleFigures()">
+          <span class="toggle-orb"></span>
+          <span>Reveal the luminaries</span>
+        </div>
+      </div>
+      <div class="compass-container" id="compassArea">
+        <canvas class="compass-canvas" id="compassCanvas"></canvas>
+        <div class="compass-tooltip" id="tooltip">
+          <div class="tooltip-name" id="tooltipName"></div>
+          <div class="tooltip-role" id="tooltipRole"></div>
+          <div class="tooltip-quote" id="tooltipQuote"></div>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="reading-head">Your Reading</div>
+      <div id="resultDescription"></div>
+    </div>
+
+    <div class="result-actions">
+      <button class="ghost-btn gold" onclick="exportCard()">✦ Export Star Chart</button>
+      <button class="ghost-btn" onclick="restart()">Chart the Sky Anew</button>
+    </div>
+
+    <div class="ad-unit">
+      <div class="ad-label">Advertisement</div>
+      <ins class="adsbygoogle ad-slot" style="display:flex"
+           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+           data-ad-slot="2345678901" data-ad-format="horizontal" data-adtest="on"></ins>
+    </div>
+  </div>
+</div>
+
+<!-- offscreen share card -->
+<div id="shareCard">
+  <div class="sc-tag">The Observatory of Final Things</div>
+  <div class="sc-title">The AI <span class="doom">Doom</span> Compass</div>
+  <canvas id="shareCanvas"></canvas>
+  <div class="sc-arch" id="scArch"></div>
+  <div class="sc-sub" id="scSub"></div>
+  <div class="sc-coords" id="scCoords"></div>
+  <div class="sc-foot">Chart your own sky ✦ AI Doom Compass</div>
+</div>
+
+<script src="compass-data.js"></script>
+<script>
+/* ── THEME ── */
+const C = {
+  space: '#050811', gold: '#e3c87e', ice: '#9fb8d8',
+  text: '#dfe6f2', dim: '#7484a0', rose: '#d88a8a', sage: '#93b89a'
+};
+function figureColor(f) {
+  if (f.x > 0 && f.y > 0) return C.rose;
+  if (f.x <= 0 && f.y > 0) return C.gold;
+  if (f.x > 0 && f.y <= 0) return C.sage;
+  return C.ice;
+}
+const QUAD_COLOR = { panic: C.rose, cassandra: C.gold, accel: C.sage, shrug: C.ice };
+const HOUSE_SIGN = { panic: '♄', cassandra: '☽', accel: '☿', shrug: '♆' };
+
+let currentQ = 0, scores = { x: 0, y: 0 };
+let userNx = 0, userNy = 0, showFigures = false, canvasLayout = {};
+
+/* ── TWINKLING STARFIELD ── */
+(function starfield() {
+  const sc = document.getElementById('starCanvas');
+  const ctx = sc.getContext('2d');
+  let W, H, stars = [];
+  function build() {
+    W = sc.width = window.innerWidth;
+    H = sc.height = window.innerHeight;
+    stars = [];
+    const N = Math.floor((W * H) / 4200);
+    for (let i = 0; i < N; i++) {
+      stars.push({
+        x: Math.random() * W, y: Math.random() * H,
+        r: Math.random() < 0.88 ? 0.5 + Math.random() * 0.7 : 1.1 + Math.random() * 1.1,
+        base: 0.15 + Math.random() * 0.55,
+        tw: 0.5 + Math.random() * 2.2,
+        ph: Math.random() * Math.PI * 2,
+        warm: Math.random() < 0.25
+      });
+    }
+  }
+  window.addEventListener('resize', build);
+  build();
+  function frame(t) {
+    ctx.clearRect(0, 0, W, H);
+    const s = t / 1000;
+    stars.forEach(st => {
+      const a = st.base * (0.55 + 0.45 * Math.sin(s * st.tw + st.ph));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = st.warm ? '#e3c87e' : '#cfdcf0';
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* ── PROGRESS ── */
+function renderProgress() {
+  const pct = (currentQ / QUESTIONS.length) * 100;
+  document.getElementById('orbitFill').style.width = pct + '%';
+  document.getElementById('orbitMoon').style.left = pct + '%';
+  document.getElementById('progressText').textContent =
+    `Proposition ${String(currentQ + 1).padStart(2, '0')} of ${QUESTIONS.length}`;
+}
+
+/* ── QUESTION ── */
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+  document.getElementById('questionContainer').innerHTML = `
+    <div class="obs-card">
+      <div class="obs-label">Proposition ${String(currentQ + 1).padStart(2, '0')}</div>
+      <div class="obs-text">${q.text}</div>
+      <div class="likert-options">
+        ${SCALE.map(s => `
+          <button class="likert-btn" onclick="answer(${s.mult})">
+            <span class="likert-phase"></span>
+            <span class="likert-label">${s.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  renderProgress();
+}
+
+function answer(mult) {
+  const q = QUESTIONS[currentQ];
+  scores.x += q.x * mult;
+  scores.y += q.y * mult;
+  currentQ++;
+  if (currentQ >= QUESTIONS.length) showResult();
+  else renderQuestion();
+}
+
+/* ── RESULT ── */
+function showResult() {
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('result').classList.add('visible');
+
+  let maxX = 0, maxY = 0;
+  QUESTIONS.forEach(q => { maxX += Math.abs(q.x); maxY += Math.abs(q.y); });
+  userNx = Math.max(-1, Math.min(1, scores.x / maxX));
+  userNy = Math.max(-1, Math.min(1, scores.y / maxY));
+
+  drawCompass();
+  writeDescription(userNx, userNy);
+  buildLegend();
+  setupTooltip();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* four-point star */
+function drawStar(ctx, x, y, r, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.quadraticCurveTo(x, y, x, y + r);
+  ctx.quadraticCurveTo(x, y, x - r, y);
+  ctx.quadraticCurveTo(x, y, x, y - r);
+  ctx.fill();
+}
+
+/* constellation lines: connect each figure to its nearest same-quadrant neighbour */
+function constellationPairs() {
+  const pairs = [];
+  FIGURES.forEach((f, i) => {
+    let best = -1, bestD = Infinity;
+    FIGURES.forEach((g, j) => {
+      if (i === j) return;
+      if (quadrantKey(f.x, f.y) !== quadrantKey(g.x, g.y)) return;
+      const d = Math.hypot(f.x - g.x, f.y - g.y);
+      if (d < bestD) { bestD = d; best = j; }
+    });
+    if (best >= 0) {
+      const a = Math.min(i, best), b = Math.max(i, best);
+      if (!pairs.some(p => p[0] === a && p[1] === b)) pairs.push([a, b]);
+    }
+  });
+  return pairs;
+}
+const CONST_PAIRS = constellationPairs();
+
+function drawCompass() {
+  const canvas = document.getElementById('compassCanvas');
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width) || 560;
+  const isMobile = containerW < 500;
+  const padSide = isMobile ? 36 : 48;
+  const padTop = isMobile ? 50 : 58;
+  const padBottom = isMobile ? 58 : 62;
+  const gw = containerW - padSide * 2;
+  const canvasH = gw + padTop + padBottom;
+
+  canvas.width = containerW * 2;
+  canvas.height = canvasH * 2;
+  canvas.style.width = containerW + 'px';
+  canvas.style.height = canvasH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+  const gx = padSide, gy = padTop;
+  const gcx = gx + gw / 2, gcy = gy + gw / 2;
+  canvasLayout = { canvasW: containerW, canvasH, gx, gy, gw, gcx, gcy };
+
+  // deep space backdrop with faint chart stars
+  ctx.fillStyle = 'rgba(7, 11, 24, 0.55)';
+  ctx.fillRect(gx, gy, gw, gw);
+  const seed = 12;
+  for (let i = 0; i < 60; i++) {
+    const sx = gx + ((Math.sin(i * 127.1 + seed) * 0.5 + 0.5) * gw);
+    const sy = gy + ((Math.sin(i * 311.7 + seed * 2) * 0.5 + 0.5) * gw);
+    ctx.globalAlpha = 0.1 + (Math.sin(i * 74.3) * 0.5 + 0.5) * 0.18;
+    ctx.fillStyle = '#cfdcf0';
+    ctx.beginPath(); ctx.arc(sx, sy, 0.7, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // fine grid — graticule
+  ctx.strokeStyle = 'rgba(227,200,126,0.08)';
+  ctx.lineWidth = 0.7;
+  for (let i = 0; i <= 12; i++) {
+    const xp = gx + (gw / 12) * i, yp = gy + (gw / 12) * i;
+    ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+  }
+
+  // ecliptic circles
+  ctx.strokeStyle = 'rgba(227,200,126,0.14)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(gcx, gcy, gw * 0.5, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([1, 4]);
+  ctx.beginPath(); ctx.arc(gcx, gcy, gw * 0.32, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // axes — hairline gold
+  ctx.strokeStyle = 'rgba(227,200,126,0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+
+  // degree ticks along axes
+  ctx.strokeStyle = 'rgba(227,200,126,0.35)';
+  for (let i = 1; i < 20; i++) {
+    const t = gx + (gw / 20) * i;
+    const len = i % 5 === 0 ? 5 : 2.5;
+    ctx.beginPath(); ctx.moveTo(t, gcy - len); ctx.lineTo(t, gcy + len); ctx.stroke();
+    const v = gy + (gw / 20) * i;
+    ctx.beginPath(); ctx.moveTo(gcx - len, v); ctx.lineTo(gcx + len, v); ctx.stroke();
+  }
+
+  // frame — double border
+  ctx.strokeStyle = 'rgba(227,200,126,0.45)';
+  ctx.strokeRect(gx, gy, gw, gw);
+  ctx.strokeStyle = 'rgba(227,200,126,0.18)';
+  ctx.strokeRect(gx - 4, gy - 4, gw + 8, gw + 8);
+
+  const titleFont = (isMobile ? '11px' : '13px') + ' "Marcellus", serif';
+  const subFont = (isMobile ? '300 8px' : '300 9px') + ' "Jost", sans-serif';
+  const axisFont = (isMobile ? '400 7.5px' : '400 8.5px') + ' "Jost", sans-serif';
+  const figureFont = (isMobile ? '300 7.5px' : '300 8.5px') + ' "Jost", sans-serif';
+
+  function houseLabel(title, sub, x, y, align, color) {
+    ctx.textAlign = align;
+    ctx.font = titleFont;
+    ctx.fillStyle = color;
+    ctx.fillText(title, x, y);
+    ctx.font = subFont;
+    ctx.fillStyle = color.replace(')', ', 0.6)').replace('rgb', 'rgba');
+    ctx.fillText(sub.toUpperCase(), x, y + (isMobile ? 11 : 13));
+  }
+
+  ctx.textAlign = 'left'; ctx.font = titleFont; ctx.fillStyle = C.gold;
+  ctx.fillText('☽ THE CASSANDRA', gx, gy - (isMobile ? 26 : 30));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(227,200,126,0.55)';
+  ctx.fillText('SLOW COLLAPSE · TOTAL UPHEAVAL', gx, gy - (isMobile ? 14 : 16));
+
+  ctx.textAlign = 'right'; ctx.font = titleFont; ctx.fillStyle = C.rose;
+  ctx.fillText('THE PANIC ROOM ♄', gx + gw, gy - (isMobile ? 26 : 30));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(216,138,138,0.6)';
+  ctx.fillText('COMING FAST & FOR EVERYTHING', gx + gw, gy - (isMobile ? 14 : 16));
+
+  ctx.textAlign = 'left'; ctx.font = titleFont; ctx.fillStyle = C.ice;
+  ctx.fillText('♆ THE SHRUG', gx, gy + gw + (isMobile ? 20 : 24));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(159,184,216,0.6)';
+  ctx.fillText('DISTANT FUTURE · MANAGEABLE BUMPS', gx, gy + gw + (isMobile ? 32 : 37));
+
+  ctx.textAlign = 'right'; ctx.font = titleFont; ctx.fillStyle = C.sage;
+  ctx.fillText('THE ACCELERATIONIST ☿', gx + gw, gy + gw + (isMobile ? 20 : 24));
+  ctx.font = subFont; ctx.fillStyle = 'rgba(147,184,154,0.6)';
+  ctx.fillText("COMING SOON · WE'LL ADAPT", gx + gw, gy + gw + (isMobile ? 32 : 37));
+
+  // axis labels
+  ctx.fillStyle = 'rgba(116,132,160,0.8)';
+  ctx.font = axisFont; ctx.textAlign = 'center';
+  ctx.fillText('DISTANT', gx + gw * 0.14, gy + gw + (isMobile ? 47 : 54));
+  ctx.fillText('IMMINENT', gx + gw * 0.86, gy + gw + (isMobile ? 47 : 54));
+  ctx.save(); ctx.translate(gx - (isMobile ? 16 : 20), gy + gw * 0.16); ctx.rotate(-Math.PI/2);
+  ctx.fillText('UPHEAVAL', 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(gx - (isMobile ? 16 : 20), gy + gw * 0.85); ctx.rotate(-Math.PI/2);
+  ctx.fillText('BUMPS', 0, 0); ctx.restore();
+
+  // luminaries — four-point stars with constellation lines
+  if (showFigures) {
+    ctx.strokeStyle = 'rgba(227,200,126,0.18)';
+    ctx.lineWidth = 0.8;
+    CONST_PAIRS.forEach(([a, b]) => {
+      const fa = FIGURES[a], fb = FIGURES[b];
+      ctx.beginPath();
+      ctx.moveTo(gcx + fa.x * (gw/2), gcy - fa.y * (gw/2));
+      ctx.lineTo(gcx + fb.x * (gw/2), gcy - fb.y * (gw/2));
+      ctx.stroke();
+    });
+
+    const r = isMobile ? 4.5 : 5.5;
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const col = figureColor(f);
+      const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, 13);
+      g.addColorStop(0, col + '45'); g.addColorStop(1, col + '00');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(fx, fy, 13, 0, Math.PI*2); ctx.fill();
+      drawStar(ctx, fx, fy, r, col);
+      ctx.font = figureFont; ctx.textAlign = 'center';
+      ctx.fillStyle = col;
+      ctx.fillText(f.name.split(' ').pop(), fx, fy - (isMobile ? 8 : 10));
+    });
+  }
+
+  // you — the comet
+  const px = gcx + userNx * (gw/2), py = gcy - userNy * (gw/2);
+
+  // comet tail sweeping in from the lower-left
+  const tailLen = isMobile ? 44 : 60;
+  const tail = ctx.createLinearGradient(px - tailLen, py + tailLen * 0.55, px, py);
+  tail.addColorStop(0, 'rgba(227,200,126,0)');
+  tail.addColorStop(1, 'rgba(227,200,126,0.55)');
+  ctx.strokeStyle = tail;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(px - tailLen, py + tailLen * 0.55);
+  ctx.quadraticCurveTo(px - tailLen * 0.4, py + tailLen * 0.12, px, py);
+  ctx.stroke();
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(px - tailLen * 0.85, py + tailLen * 0.7);
+  ctx.quadraticCurveTo(px - tailLen * 0.35, py + tailLen * 0.25, px, py);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // crosshair
+  ctx.strokeStyle = 'rgba(227,200,126,0.25)';
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([2, 5]);
+  ctx.beginPath(); ctx.moveTo(px, gy); ctx.lineTo(px, gy + gw); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx, py); ctx.lineTo(gx + gw, py); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const glow = ctx.createRadialGradient(px, py, 0, px, py, 26);
+  glow.addColorStop(0, 'rgba(244,231,190,0.7)');
+  glow.addColorStop(0.4, 'rgba(227,200,126,0.25)');
+  glow.addColorStop(1, 'rgba(227,200,126,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(px, py, 26, 0, Math.PI*2); ctx.fill();
+
+  drawStar(ctx, px, py, isMobile ? 9 : 11, '#f4e7be');
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI*2); ctx.fill();
+
+  ctx.font = (isMobile ? '10px' : '12px') + ' "Marcellus", serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f4e7be';
+  ctx.fillText('Y O U', px, py - (isMobile ? 15 : 19));
+}
+
+function toggleFigures() {
+  showFigures = !showFigures;
+  document.getElementById('figToggle').classList.toggle('on', showFigures);
+  document.getElementById('legend').classList.toggle('visible', showFigures);
+  drawCompass();
+}
+
+function buildLegend() {
+  document.getElementById('legend').innerHTML = FIGURES.map(f => `
+    <div class="legend-item">
+      <span class="legend-star" style="color:${figureColor(f)}">✦</span>
+      <span class="legend-name">${f.name}</span>
+    </div>
+  `).join('');
+}
+
+function setupTooltip() {
+  const area = document.getElementById('compassArea');
+  const canvas = document.getElementById('compassCanvas');
+  const tooltip = document.getElementById('tooltip');
+
+  function hitTest(clientX, clientY, radius) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (clientX - rect.left) * (canvasLayout.canvasW / rect.width);
+    const my = (clientY - rect.top) * (canvasLayout.canvasH / rect.height);
+    const { gcx, gcy, gw } = canvasLayout;
+    let hit = null, minDist = radius;
+    FIGURES.forEach(f => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const d = Math.hypot(mx - fx, my - fy);
+      if (d < minDist) { minDist = d; hit = f; }
+    });
+    return hit;
+  }
+
+  function showTip(hit, clientX, clientY) {
+    document.getElementById('tooltipName').textContent = hit.name;
+    document.getElementById('tooltipRole').textContent = hit.role;
+    document.getElementById('tooltipQuote').textContent = `"${hit.quote}"`;
+    const cr = area.getBoundingClientRect();
+    let tx = clientX - cr.left + 16, ty = clientY - cr.top - 10;
+    if (tx + 250 > cr.width) tx = clientX - cr.left - 250;
+    if (ty + 100 > cr.height) ty = clientY - cr.top - 90;
+    if (ty < 0) ty = 5;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+    tooltip.classList.add('visible');
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    if (!showFigures) { tooltip.classList.remove('visible'); return; }
+    const hit = hitTest(e.clientX, e.clientY, 18);
+    if (hit) showTip(hit, e.clientX, e.clientY);
+    else tooltip.classList.remove('visible');
+  });
+  canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+  canvas.addEventListener('touchstart', e => {
+    if (!showFigures) return;
+    const t = e.touches[0];
+    const hit = hitTest(t.clientX, t.clientY, 30);
+    if (hit) { showTip(hit, t.clientX, t.clientY); setTimeout(() => tooltip.classList.remove('visible'), 2500); }
+    else tooltip.classList.remove('visible');
+  });
+}
+
+function writeDescription(nx, ny) {
+  const key = quadrantKey(nx, ny);
+  const arch = ARCHETYPES[key];
+  const color = QUAD_COLOR[key];
+  const nearest = nearestFigure(nx, ny);
+  const xPct = Math.round(nx * 100), yPct = Math.round(ny * 100);
+
+  document.getElementById('resultDescription').innerHTML = `
+    <div class="archetype" style="color:${color}; text-shadow: 0 0 30px ${color};">${HOUSE_SIGN[key]} ${arch.name}</div>
+    <div class="archetype-sub">Ascendant house — ${arch.sub}</div>
+    <div class="result-text">${arch.body}${intensityNote(nx, ny)}</div>
+    <div class="coords">
+      <div class="coord-item">
+        <div class="coord-k">Right Ascension · Timeline</div>
+        <div class="coord-v">${xPct > 0 ? '+' : ''}${xPct}°</div>
+        <div class="coord-note">${nx > 0 ? 'toward the imminent' : 'toward the distant'}</div>
+      </div>
+      <div class="coord-item">
+        <div class="coord-k">Declination · Disruption</div>
+        <div class="coord-v">${yPct > 0 ? '+' : ''}${yPct}°</div>
+        <div class="coord-note">${ny > 0 ? 'toward upheaval' : 'toward calm'}</div>
+      </div>
+    </div>
+    ${nearest ? `
+    <div class="nearest">
+      <div class="nearest-label">The luminary nearest your orbit</div>
+      <div class="nearest-name" style="color:${figureColor(nearest)}">✦ ${nearest.name}</div>
+      <div class="nearest-quote">"${nearest.quote}"</div>
+    </div>` : ''}
+  `;
+}
+
+/* ── SHARE CARD ── */
+function exportCard() {
+  const key = quadrantKey(userNx, userNy);
+  const arch = ARCHETYPES[key];
+  document.getElementById('scArch').textContent = HOUSE_SIGN[key] + ' ' + arch.name;
+  document.getElementById('scArch').style.color = QUAD_COLOR[key];
+  document.getElementById('scSub').textContent = 'Ascendant house — ' + arch.sub;
+  const xPct = Math.round(userNx * 100), yPct = Math.round(userNy * 100);
+  document.getElementById('scCoords').innerHTML =
+    `RA <b>${xPct > 0 ? '+' : ''}${xPct}°</b> &nbsp;✦&nbsp; DEC <b>${yPct > 0 ? '+' : ''}${yPct}°</b>`;
+
+  const src = document.getElementById('compassCanvas');
+  const dst = document.getElementById('shareCanvas');
+  dst.width = src.width; dst.height = src.height;
+  const dctx = dst.getContext('2d');
+  dctx.fillStyle = '#050811';
+  dctx.fillRect(0, 0, dst.width, dst.height);
+  dctx.drawImage(src, 0, 0);
+
+  html2canvas(document.getElementById('shareCard'), {
+    backgroundColor: '#050811', scale: 2
+  }).then(card => {
+    const a = document.createElement('a');
+    a.download = 'ai-doom-compass-starchart.png';
+    a.href = card.toDataURL('image/png');
+    a.click();
+  });
+}
+
+/* ── FLOW ── */
+function startQuiz() {
+  stopPreview();
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('quiz').style.display = 'block';
+  renderQuestion();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function restart() {
+  currentQ = 0; scores = { x: 0, y: 0 }; showFigures = false;
+  document.getElementById('figToggle').classList.remove('on');
+  document.getElementById('legend').classList.remove('visible');
+  document.getElementById('result').classList.remove('visible');
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('landing').classList.remove('hidden');
+  startPreview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── LANDING PREVIEW — wandering comet among the luminaries ── */
+let previewRAF = null, previewRunning = false;
+function startPreview() {
+  const canvas = document.getElementById('previewCanvas');
+  if (!canvas) return;
+  previewRunning = true;
+  const containerW = Math.floor(canvas.parentElement.getBoundingClientRect().width) || 360;
+  const pad = 20;
+  const gw = containerW - pad * 2;
+  const canvasH = gw + pad * 2;
+  canvas.width = containerW * 2; canvas.height = canvasH * 2;
+  canvas.style.width = containerW + 'px'; canvas.style.height = canvasH + 'px';
+  const gx = pad, gy = pad, gcx = gx + gw/2, gcy = gy + gw/2;
+
+  let dotX = 0.2, dotY = 0.25, targetX = 0.2, targetY = 0.25, holdTimer = 0;
+  const trail = [];
+  function pickTarget() {
+    targetX = Math.random() * 1.6 - 0.8;
+    targetY = Math.random() * 1.6 - 0.8;
+  }
+  pickTarget();
+  let lastTime = performance.now();
+
+  function drawFrame(now) {
+    if (!previewRunning) return;
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    const s = now / 1000;
+
+    const dist = Math.hypot(targetX - dotX, targetY - dotY);
+    if (dist < 0.02) {
+      holdTimer += dt;
+      if (holdTimer > 1.4) { holdTimer = 0; pickTarget(); }
+    } else {
+      const lerp = 1 - Math.pow(0.18, dt * 1.4);
+      dotX += (targetX - dotX) * lerp;
+      dotY += (targetY - dotY) * lerp;
+    }
+    trail.push({ x: dotX, y: dotY });
+    if (trail.length > 34) trail.shift();
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.clearRect(0, 0, containerW, canvasH);
+
+    // graticule
+    ctx.strokeStyle = 'rgba(227,200,126,0.07)';
+    ctx.lineWidth = 0.7;
+    for (let i = 0; i <= 10; i++) {
+      const xp = gx + (gw/10) * i, yp = gy + (gw/10) * i;
+      ctx.beginPath(); ctx.moveTo(xp, gy); ctx.lineTo(xp, gy + gw); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx, yp); ctx.lineTo(gx + gw, yp); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(227,200,126,0.13)';
+    ctx.beginPath(); ctx.arc(gcx, gcy, gw * 0.5, 0, Math.PI*2); ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(227,200,126,0.3)';
+    ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(gx, gcy); ctx.lineTo(gx + gw, gcy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gcx, gy); ctx.lineTo(gcx, gy + gw); ctx.stroke();
+    ctx.strokeStyle = 'rgba(227,200,126,0.35)';
+    ctx.strokeRect(gx, gy, gw, gw);
+
+    // constellation lines
+    ctx.strokeStyle = 'rgba(227,200,126,0.13)';
+    ctx.lineWidth = 0.7;
+    CONST_PAIRS.forEach(([a, b]) => {
+      const fa = FIGURES[a], fb = FIGURES[b];
+      ctx.beginPath();
+      ctx.moveTo(gcx + fa.x * (gw/2), gcy - fa.y * (gw/2));
+      ctx.lineTo(gcx + fb.x * (gw/2), gcy - fb.y * (gw/2));
+      ctx.stroke();
+    });
+
+    // twinkling luminaries
+    FIGURES.forEach((f, i) => {
+      const fx = gcx + f.x * (gw/2), fy = gcy - f.y * (gw/2);
+      const tw = 0.6 + 0.4 * Math.sin(s * 1.8 + i * 1.7);
+      ctx.globalAlpha = tw;
+      drawStar(ctx, fx, fy, 3.2, figureColor(f));
+      ctx.globalAlpha = 1;
+    });
+
+    // comet trail
+    for (let i = 1; i < trail.length; i++) {
+      const a = (i / trail.length) * 0.4;
+      const t = trail[i], p = trail[i-1];
+      ctx.strokeStyle = `rgba(227,200,126,${a})`;
+      ctx.lineWidth = 1.6 * (i / trail.length);
+      ctx.beginPath();
+      ctx.moveTo(gcx + p.x * (gw/2), gcy - p.y * (gw/2));
+      ctx.lineTo(gcx + t.x * (gw/2), gcy - t.y * (gw/2));
+      ctx.stroke();
+    }
+
+    const px = gcx + dotX * (gw/2), py = gcy - dotY * (gw/2);
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, 16);
+    glow.addColorStop(0, 'rgba(244,231,190,0.65)');
+    glow.addColorStop(1, 'rgba(244,231,190,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI*2); ctx.fill();
+    drawStar(ctx, px, py, 6, '#f4e7be');
+
+    // corner glyph labels
+    ctx.font = '9px "Marcellus", serif';
+    ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(227,200,126,0.75)';
+    ctx.fillText('☽ CASSANDRA', gx + 5, gy + 13);
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(216,138,138,0.75)';
+    ctx.fillText('PANIC ROOM ♄', gx + gw - 5, gy + 13);
+    ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(159,184,216,0.75)';
+    ctx.fillText('♆ SHRUG', gx + 5, gy + gw - 8);
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(147,184,154,0.75)';
+    ctx.fillText('ACCELERATIONIST ☿', gx + gw - 5, gy + gw - 8);
+
+    previewRAF = requestAnimationFrame(drawFrame);
+  }
+  previewRAF = requestAnimationFrame(drawFrame);
+}
+function stopPreview() {
+  previewRunning = false;
+  if (previewRAF) { cancelAnimationFrame(previewRAF); previewRAF = null; }
+}
+startPreview();
+</script>
+</body>
+</html>
