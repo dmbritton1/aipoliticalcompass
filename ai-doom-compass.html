@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The AI Doom Compass</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<!-- Google AdSense — replace ca-pub-XXXXXXXXXXXXXXXX with your real publisher ID -->
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
 <style>
   :root {
     --bg: #0f0d0a;
@@ -777,106 +775,6 @@
     .quiz-header-tag { display: none; }
   }
 
-  /* ── AD UNITS ── */
-  .ad-unit {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin: 2rem auto;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .ad-label {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.5rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    opacity: 0.4;
-    margin-bottom: 0.4rem;
-  }
-
-  .ad-slot {
-    width: 100%;
-    max-width: 728px;
-    border: 1px dashed rgba(122,184,212,0.12);
-    border-radius: 3px;
-    background: linear-gradient(135deg, rgba(22,19,16,0.9) 0%, rgba(28,25,21,0.9) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .ad-slot::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(122,184,212,0.015) 10px, rgba(122,184,212,0.015) 20px);
-    pointer-events: none;
-  }
-
-  .ad-leaderboard { height: 90px; }
-  .ad-banner { height: 100px; }
-  .ad-rectangle { max-width: 336px; height: 280px; }
-
-  .ad-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    z-index: 1;
-    text-align: center;
-    padding: 1rem;
-  }
-
-  .ad-content .ad-icon {
-    font-size: 1.5rem;
-    opacity: 0.3;
-  }
-
-  .ad-content .ad-title {
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-dim);
-    opacity: 0.6;
-  }
-
-  .ad-content .ad-cta {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.55rem;
-    letter-spacing: 0.1em;
-    color: var(--ice);
-    opacity: 0.35;
-    border: 1px solid rgba(122,184,212,0.15);
-    border-radius: 2px;
-    padding: 0.25rem 0.75rem;
-  }
-
-  .ad-content .ad-size {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.5rem;
-    color: var(--text-dim);
-    opacity: 0.25;
-  }
-
-  /* Inline ad between questions */
-  .ad-inline { margin: 1.5rem auto 2rem; }
-
-  /* Result page ads */
-  .ad-result { margin: 0 auto 2rem; }
-
-  @media (max-width: 750px) {
-    .ad-leaderboard { height: 60px; }
-    .ad-banner { height: 80px; }
-    .ad-rectangle { max-width: 300px; height: 250px; }
-    .ad-content .ad-title { font-size: 0.75rem; }
-  }
 
   /* ── MOBILE ── */
   @media (max-width: 750px) {
@@ -968,17 +866,6 @@
       </button>
     </div>
 
-    <!-- AD: Landing leaderboard -->
-    <div class="ad-unit">
-      <div class="ad-label">Advertisement</div>
-      <ins class="adsbygoogle ad-slot ad-leaderboard"
-           style="display:block"
-           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-           data-ad-slot="1234567890"
-           data-ad-format="horizontal"
-           data-adtest="on"></ins>
-      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    </div>
   </div>
 
   <!-- ── QUIZ ── -->
@@ -992,21 +879,9 @@
       <div class="progress-label" id="progressText">STATEMENT 01 OF 30</div>
     </div>
     <div id="questionContainer"></div>
-    <div id="quizAdContainer"></div>
   </div>
 
   <div class="result-screen" id="result">
-    <!-- AD: Above results -->
-    <div class="ad-unit ad-result">
-      <div class="ad-label">Advertisement</div>
-      <ins class="adsbygoogle ad-slot ad-banner"
-           style="display:block"
-           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-           data-ad-slot="2345678901"
-           data-ad-format="horizontal"
-           data-adtest="on"></ins>
-      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    </div>
     <div class="compass-row">
       <div class="legend-panel" id="legendPanel">
         <div class="legend-title">Notable Figures</div>
@@ -1046,17 +921,6 @@
       <div class="result-body-inner" id="resultDescription"></div>
     </div>
 
-    <!-- AD: Below result description -->
-    <div class="ad-unit ad-result">
-      <div class="ad-label">Advertisement</div>
-      <ins class="adsbygoogle ad-slot ad-rectangle"
-           style="display:block"
-           data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-           data-ad-slot="3456789012"
-           data-ad-format="rectangle"
-           data-adtest="on"></ins>
-      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    </div>
 
     <button class="restart-btn" onclick="restart()">Retake Assessment</button>
   </div>
@@ -1182,25 +1046,6 @@ function renderQuestion() {
     </div>
   `;
   renderProgressBar();
-
-  // Show inline ad every 10 questions
-  const adContainer = document.getElementById('quizAdContainer');
-  if (currentQ > 0 && currentQ % 10 === 0) {
-    adContainer.innerHTML = `
-      <div class="ad-unit ad-inline">
-        <div class="ad-label">Advertisement</div>
-        <ins class="adsbygoogle ad-slot ad-banner"
-             style="display:block"
-             data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-             data-ad-slot="4567890123"
-             data-ad-format="horizontal"
-             data-adtest="on"></ins>
-      </div>
-    `;
-    try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
-  } else {
-    adContainer.innerHTML = '';
-  }
 }
 
 function answer(mult) {
