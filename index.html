@@ -1117,7 +1117,7 @@ function drawCompass() {
       ctx.closePath(); ctx.fill();
       ctx.shadowBlur = 0;
 
-      const label = f.name.split(' ').pop().toUpperCase();
+      const label = (f.label || f.name.split(' ').pop()).toUpperCase();
       const w = ctx.measureText(label).width;
       const up = isMobile ? 7 : 9, down = isMobile ? 13 : 15, step = 9;
       const slots = [fy - up, fy + down, fy - up - step, fy + down + step, fy - up - step * 2];

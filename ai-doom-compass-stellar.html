@@ -932,7 +932,7 @@ function drawCompass() {
       drawStar(ctx, fx, fy, r, col);
       ctx.font = figureFont; ctx.textAlign = 'center';
       ctx.fillStyle = col;
-      ctx.fillText(f.name.split(' ').pop(), fx, fy - (isMobile ? 8 : 10));
+      ctx.fillText((f.label || f.name.split(' ').pop()), fx, fy - (isMobile ? 8 : 10));
     });
   }
 

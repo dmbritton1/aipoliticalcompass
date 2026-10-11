@@ -953,7 +953,7 @@ function drawCompass() {
       ctx.font = figureFont;
       ctx.textAlign = 'center';
       const ly = Math.max(fy - (isMobile ? 6 : 8), gy + 8);
-      ctx.fillText(f.name.split(' ').pop(), fx, ly);
+      ctx.fillText((f.label || f.name.split(' ').pop()), fx, ly);
     });
   }
 
@@ -1222,7 +1222,7 @@ function startPreview() {
       ctx.font = nameFont;
       ctx.textAlign = 'center';
       ctx.fillStyle = col + '70';
-      ctx.fillText(f.name.split(' ').pop(), fx, fy - 6);
+      ctx.fillText((f.label || f.name.split(' ').pop()), fx, fy - 6);
     });
 
     const px = gcx + dotX * (gw/2), py = gcy - dotY * (gw/2);

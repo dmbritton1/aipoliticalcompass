@@ -952,7 +952,7 @@ function drawCompass() {
       ctx.font = figureFont; ctx.textAlign = 'center';
       ctx.fillStyle = col;
       const ly = Math.max(fy - (isMobile ? 7 : 9), gy + 9);
-      ctx.fillText(f.name.split(' ').pop().toUpperCase(), fx, ly);
+      ctx.fillText((f.label || f.name.split(' ').pop()).toUpperCase(), fx, ly);
     });
   }
 

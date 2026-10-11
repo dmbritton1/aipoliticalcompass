@@ -938,7 +938,7 @@ function drawCompass() {
       ctx.shadowBlur = 0;
       ctx.font = figureFont; ctx.textAlign = 'center';
       ctx.fillStyle = col;
-      ctx.fillText(f.name.split(' ').pop().toUpperCase(), fx, fy - (isMobile ? 7 : 9));
+      ctx.fillText((f.label || f.name.split(' ').pop()).toUpperCase(), fx, fy - (isMobile ? 7 : 9));
     });
   }
 
