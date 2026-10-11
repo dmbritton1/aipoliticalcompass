@@ -58,6 +58,8 @@ const FIGURES = [
     quote: "I think it is AGI, seriously." },
   { name: "Pope Leo XIV", label: "Pope Leo", role: "Author of AI encyclical 'Magnifica Humanitas'", x: 0.00, y: 0.60,
     quote: "Our faces and voices are unique, distinctive features of every person." },
+  { name: "Bernie Sanders", role: "U.S. Senator (I-VT)", x: 0.40, y: 0.85,
+    quote: "If we do not act, the result could be economic devastation for working people across this country." },
   { name: "Lex Fridman", role: "Podcaster, MIT Researcher", x: 0.40, y: 0.10,
     quote: "I would say my p(doom) is about 10%." },
   { name: "Joe Rogan", role: "Podcaster, The JRE", x: 0.50, y: 0.55,
